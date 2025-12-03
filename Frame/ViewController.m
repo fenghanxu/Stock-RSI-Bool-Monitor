@@ -4,8 +4,6 @@
 #import "MyTimer.h"
 #define viewHeight 300 // 蜡烛图高度
 #define space 3 // 每条蜡烛图的间隙
-//#define MaxVisibleKLineCount 300 // 每次提取限制300个数据
-//#define MaxCacheKLineCount 600 // 数组限制最多600个可视数据
 #define volumeHeight 80  // 成交量图形高度
 #define rsiHeight 60 // RSI 指标高度
 
@@ -500,50 +498,26 @@ typedef void(^KLineScaleAction)(BOOL clickState);
     [self detectRSI_BOLL_Signals];
     //打印结果
     //[self printBacktestSummary];
-    
-//    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-//        [self.allKLineData addObject:self.futureKLineData.firstObject];
-//        [self.futureKLineData removeObjectAtIndex:0];
-////        [self.allKLineData removeObjectAtIndex:0];
-//        
-//        [self setupChartView:viewHeight + 10 + volumeHeight + 10 + rsiHeight];
-//        //计算 RSI的模型数据
-//        [self calculateRSIWithPeriod:6];
-//        //计算BOLL的模型数据
-//        [self calculateBOLLWithPeriod:20];
-//        /*
-//         1.当RSI>80 且 k线的实体上穿布林线的蓝色线(bollUpper)时,等到出现k线下跌的第一根(开盘价大于收盘价),在K线的顶部标记橙色买入的字样
-//         2.当RSI<20 且 k线的实体下穿最底部布林线黑色(bollLower)时,等到出现k线上升的第一根(开盘价小于收盘价),在K线的顶部标记橙色买入的字样
-//         */
-//        [self detectRSI_BOLL_Signals];
-//    });
-//    
-//    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-//        [self.allKLineData addObject:self.futureKLineData.firstObject];
-//        [self.futureKLineData removeObjectAtIndex:0];
-////        [self.allKLineData removeObjectAtIndex:0];
-//        
-//        [self setupChartView:viewHeight + 10 + volumeHeight + 10 + rsiHeight];
-//        //计算 RSI的模型数据
-//        [self calculateRSIWithPeriod:6];
-//        //计算BOLL的模型数据
-//        [self calculateBOLLWithPeriod:20];
-//        /*
-//         1.当RSI>80 且 k线的实体上穿布林线的蓝色线(bollUpper)时,等到出现k线下跌的第一根(开盘价大于收盘价),在K线的顶部标记橙色买入的字样
-//         2.当RSI<20 且 k线的实体下穿最底部布林线黑色(bollLower)时,等到出现k线上升的第一根(开盘价小于收盘价),在K线的顶部标记橙色买入的字样
-//         */
-//        [self detectRSI_BOLL_Signals];
-//    });
-    
-    
+
     
     __weak typeof(self) weakSelf = self;
     self.myTimer = [MyTimer scheduledTimerWithBlock:^{
         [weakSelf.allKLineData addObject:weakSelf.futureKLineData.firstObject];
         [weakSelf.futureKLineData removeObjectAtIndex:0];
-//        [weakSelf.allKLineData removeObjectAtIndex:0];
-    
-        [weakSelf setupChartView:viewHeight + 10 + volumeHeight + 10 + rsiHeight];
+        [weakSelf.allKLineData removeObjectAtIndex:0];
+        //k线图赋值最新数据
+        weakSelf.chartView.visibleKLineData = weakSelf.allKLineData;
+        //重新绘制k线图
+        [weakSelf.chartView setNeedsDisplay];
+        //把k线图移动到最右边
+        dispatch_async(dispatch_get_main_queue(), ^{
+            UIScrollView *scrollView = weakSelf.scrollView;
+            if (!scrollView) return;
+            CGFloat maxOffsetX = scrollView.contentSize.width - scrollView.bounds.size.width;
+            if (maxOffsetX < 0) maxOffsetX = 0;
+            [scrollView setContentOffset:CGPointMake(maxOffsetX, 0) animated:NO];
+        });
+
         //计算 RSI的模型数据
         [weakSelf calculateRSIWithPeriod:6];
         //计算BOLL的模型数据
@@ -569,60 +543,13 @@ typedef void(^KLineScaleAction)(BOOL clickState);
     [self.scrollView addSubview:chartView];
     self.scrollView.contentSize = chartView.bounds.size;
     self.chartView = chartView;
-    
-    // 滑动到最右侧
-//    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.03 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-//        [self scrollChartToRight];
-//    });
-    
-    [self scrollChartToRight];
-
+    //程序启动k线图显示在最右边
+    UIScrollView *scrollView = self.scrollView;
+    if (!scrollView) return;
+    CGFloat maxOffsetX = scrollView.contentSize.width - scrollView.bounds.size.width;
+    if (maxOffsetX < 0) maxOffsetX = 0;
+    [scrollView setContentOffset:CGPointMake(maxOffsetX, 0) animated:NO];
 }
-
-- (void)scrollChartToRight {
-    dispatch_async(dispatch_get_main_queue(), ^{
-        UIScrollView *scrollView = self.scrollView;
-        if (!scrollView) return;
-
-        CGFloat maxOffsetX = scrollView.contentSize.width - scrollView.bounds.size.width;
-        if (maxOffsetX < 0) maxOffsetX = 0;
-
-        [scrollView setContentOffset:CGPointMake(maxOffsetX, 0) animated:NO];
-    });
-}
-
-//- (void)printBacktestSummary {
-//
-//    printf("============================\n");
-//    printf("===== 固定参数回测结果 =====\n");
-//    printf("============================\n");
-//
-//    printf("TP = %.3f%%\n", TP_Parameter * 100);
-//    printf("SL = %.3f%%\n", SL_Parameter * 100);
-//    printf("最终资金乘数 = %.6f\n", self.finalBalance);
-//    printf("交易笔数 = %ld\n", (long)self.tradeCount);
-//    printf("获利笔数 = %ld\n", (long)self.winTrades);
-//    double winRate = 0.0;
-//    if (self.tradeCount > 0) {
-//        winRate = (double)self.winTrades / self.tradeCount * 100.0;
-//    }
-//    printf("胜率 = %.2f%%\n", winRate);
-//    double avgReturn = 0;
-//    if (self.returnsArray.count > 0) {
-//        double sum = 0;
-//        for (NSNumber *n in self.returnsArray) sum += n.doubleValue;
-//        avgReturn = sum / self.returnsArray.count;
-//    }
-//    printf("赢的次数 = %ld\n", (long)self.winCount);
-//    printf("输的次数 = %ld\n", (long)self.lowerCount);
-//    printf("平均每笔回报（%%） = %.4f%%\n", avgReturn);
-//
-//    printf("========== 连败统计（1..12） ==========\n");
-//    for (int i = 0; i < 12; i++) {
-//        printf("连输%d: %d\n", i+1, self.lossStreaks[i].intValue);
-//    }
-//}
-
 
 // 计算 RSI
 - (void)calculateRSIWithPeriod:(NSInteger)n {
