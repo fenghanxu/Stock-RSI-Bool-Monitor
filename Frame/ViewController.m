@@ -1,10 +1,11 @@
 
 
 #import "ViewController.h"
+#import "MyTimer.h"
 #define viewHeight 300 // 蜡烛图高度
 #define space 3 // 每条蜡烛图的间隙
-#define MaxVisibleKLineCount 300 // 每次提取限制300个数据
-#define MaxCacheKLineCount 600 // 数组限制最多600个可视数据
+//#define MaxVisibleKLineCount 300 // 每次提取限制300个数据
+//#define MaxCacheKLineCount 600 // 数组限制最多600个可视数据
 #define volumeHeight 80  // 成交量图形高度
 #define rsiHeight 60 // RSI 指标高度
 
@@ -445,11 +446,11 @@ typedef void(^KLineScaleAction)(BOOL clickState);
 @end
 
 @interface ViewController () <UIScrollViewDelegate>
+@property (nonatomic, strong) MyTimer *myTimer;
 @property (nonatomic, strong) UIScrollView *scrollView;
 @property (nonatomic, strong) KLineChartView *chartView;
-@property (nonatomic, strong) NSArray<KLineModel *> *allKLineData;
-//@property (nonatomic, strong) NSMutableArray<KLineModel *> *loadedKLineData;
-@property (nonatomic, assign) NSInteger currentStartIndex;
+@property (nonatomic, strong) NSMutableArray<KLineModel *> *allKLineData;
+@property (nonatomic, strong) NSMutableArray<KLineModel *> *futureKLineData;
 
 @property (nonatomic, assign) NSInteger winCount;    //赢的次数
 @property (nonatomic, assign) NSInteger lowerCount;  //输的次数
@@ -464,45 +465,30 @@ typedef void(^KLineScaleAction)(BOOL clickState);
 
 @implementation ViewController
 
-- (NSMutableArray<NSNumber *> *)returnsArray {
-    if (_returnsArray == nil) {
-        _returnsArray = [NSMutableArray<NSNumber *> new];
-    }
-    return _returnsArray;
-}
-
-- (NSMutableArray<NSNumber *> *)lossStreaks {
-    if (_lossStreaks == nil) {
-        _lossStreaks = [NSMutableArray<NSNumber *> new];
-    }
-    return _lossStreaks;
-}
-
 - (void)viewDidLoad {
     [super viewDidLoad];
     self.view.backgroundColor = UIColor.whiteColor;
-    
-    self.finalBalance = 1.0;
-    self.tradeCount = 0;
-    self.winTrades = 0;
+
+    self.allKLineData      = [NSMutableArray<KLineModel *> new];
+    self.futureKLineData   = [NSMutableArray<KLineModel *> new];
+    self.finalBalance      = 1.0;
+    self.tradeCount        = 0;
+    self.winTrades         = 0;
     self.currentLossStreak = 0;
-    self.lossStreaks = [NSMutableArray array];
+    self.returnsArray      = [NSMutableArray<NSNumber *> new];
+    self.lossStreaks       = [NSMutableArray<NSNumber *> new];
     for (int i = 0; i < 12; i++) {
         [self.lossStreaks addObject:@0];
     }
-
     
-    CGFloat chartHeight = viewHeight + 10 + volumeHeight + 10 + rsiHeight;
-
-    self.allKLineData = [self data_0];
-    self.currentStartIndex = 0;
-//    self.loadedKLineData = [[self loadDataFromIndex:self.currentStartIndex count:MaxVisibleKLineCount] mutableCopy];
-    self.scrollView = [[UIScrollView alloc] initWithFrame:self.view.bounds];
+    self.futureKLineData     = [self data_future];
+    self.allKLineData        = [self data_initial];
+    self.scrollView          = [[UIScrollView alloc] initWithFrame:self.view.bounds];
     self.scrollView.delegate = self;
     [self.view addSubview:self.scrollView];
 
     //计算 股票图的contentSize.width(可滑动的宽度)
-    [self setupChartView:chartHeight];
+    [self setupChartView:viewHeight + 10 + volumeHeight + 10 + rsiHeight];
     //计算 RSI的模型数据
     [self calculateRSIWithPeriod:6];
     //计算BOLL的模型数据
@@ -513,40 +499,129 @@ typedef void(^KLineScaleAction)(BOOL clickState);
      */
     [self detectRSI_BOLL_Signals];
     //打印结果
-    [self printBacktestSummary];
+    //[self printBacktestSummary];
+    
+//    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+//        [self.allKLineData addObject:self.futureKLineData.firstObject];
+//        [self.futureKLineData removeObjectAtIndex:0];
+////        [self.allKLineData removeObjectAtIndex:0];
+//        
+//        [self setupChartView:viewHeight + 10 + volumeHeight + 10 + rsiHeight];
+//        //计算 RSI的模型数据
+//        [self calculateRSIWithPeriod:6];
+//        //计算BOLL的模型数据
+//        [self calculateBOLLWithPeriod:20];
+//        /*
+//         1.当RSI>80 且 k线的实体上穿布林线的蓝色线(bollUpper)时,等到出现k线下跌的第一根(开盘价大于收盘价),在K线的顶部标记橙色买入的字样
+//         2.当RSI<20 且 k线的实体下穿最底部布林线黑色(bollLower)时,等到出现k线上升的第一根(开盘价小于收盘价),在K线的顶部标记橙色买入的字样
+//         */
+//        [self detectRSI_BOLL_Signals];
+//    });
+//    
+//    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+//        [self.allKLineData addObject:self.futureKLineData.firstObject];
+//        [self.futureKLineData removeObjectAtIndex:0];
+////        [self.allKLineData removeObjectAtIndex:0];
+//        
+//        [self setupChartView:viewHeight + 10 + volumeHeight + 10 + rsiHeight];
+//        //计算 RSI的模型数据
+//        [self calculateRSIWithPeriod:6];
+//        //计算BOLL的模型数据
+//        [self calculateBOLLWithPeriod:20];
+//        /*
+//         1.当RSI>80 且 k线的实体上穿布林线的蓝色线(bollUpper)时,等到出现k线下跌的第一根(开盘价大于收盘价),在K线的顶部标记橙色买入的字样
+//         2.当RSI<20 且 k线的实体下穿最底部布林线黑色(bollLower)时,等到出现k线上升的第一根(开盘价小于收盘价),在K线的顶部标记橙色买入的字样
+//         */
+//        [self detectRSI_BOLL_Signals];
+//    });
+    
+    
+    
+    __weak typeof(self) weakSelf = self;
+    self.myTimer = [MyTimer scheduledTimerWithBlock:^{
+        [weakSelf.allKLineData addObject:weakSelf.futureKLineData.firstObject];
+        [weakSelf.futureKLineData removeObjectAtIndex:0];
+//        [weakSelf.allKLineData removeObjectAtIndex:0];
+    
+        [weakSelf setupChartView:viewHeight + 10 + volumeHeight + 10 + rsiHeight];
+        //计算 RSI的模型数据
+        [weakSelf calculateRSIWithPeriod:6];
+        //计算BOLL的模型数据
+        [weakSelf calculateBOLLWithPeriod:20];
+        /*
+         1.当RSI>80 且 k线的实体上穿布林线的蓝色线(bollUpper)时,等到出现k线下跌的第一根(开盘价大于收盘价),在K线的顶部标记橙色买入的字样
+         2.当RSI<20 且 k线的实体下穿最底部布林线黑色(bollLower)时,等到出现k线上升的第一根(开盘价小于收盘价),在K线的顶部标记橙色买入的字样
+         */
+        [weakSelf detectRSI_BOLL_Signals];
+    }];
+    [self.myTimer start];
+
 }
 
-- (void)printBacktestSummary {
+//计算 股票图的contentSize.width(可滑动的宽度)
+- (void)setupChartView:(CGFloat)chartHeight {
+    CGFloat width = self.allKLineData.count * (8 + space);
+    KLineChartView *chartView = [[KLineChartView alloc] initWithFrame:CGRectMake(0, self.view.bounds.size.height - chartHeight - SAFE_AREA_BOTTOM, width, chartHeight)];
+    chartView.backgroundColor = [[UIColor grayColor] colorWithAlphaComponent:0.2];
+    chartView.visibleKLineData = self.allKLineData;
+    //移除scrollView上面的所有子控件
+    [self.scrollView.subviews makeObjectsPerformSelector:@selector(removeFromSuperview)];
+    [self.scrollView addSubview:chartView];
+    self.scrollView.contentSize = chartView.bounds.size;
+    self.chartView = chartView;
+    
+    // 滑动到最右侧
+//    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.03 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+//        [self scrollChartToRight];
+//    });
+    
+    [self scrollChartToRight];
 
-    printf("============================\n");
-    printf("===== 固定参数回测结果 =====\n");
-    printf("============================\n");
-
-    printf("TP = %.3f%%\n", TP_Parameter * 100);
-    printf("SL = %.3f%%\n", SL_Parameter * 100);
-    printf("最终资金乘数 = %.6f\n", self.finalBalance);
-    printf("交易笔数 = %ld\n", (long)self.tradeCount);
-    printf("获利笔数 = %ld\n", (long)self.winTrades);
-    double winRate = 0.0;
-    if (self.tradeCount > 0) {
-        winRate = (double)self.winTrades / self.tradeCount * 100.0;
-    }
-    printf("胜率 = %.2f%%\n", winRate);
-    double avgReturn = 0;
-    if (self.returnsArray.count > 0) {
-        double sum = 0;
-        for (NSNumber *n in self.returnsArray) sum += n.doubleValue;
-        avgReturn = sum / self.returnsArray.count;
-    }
-    printf("赢的次数 = %ld\n", (long)self.winCount);
-    printf("输的次数 = %ld\n", (long)self.lowerCount);
-    printf("平均每笔回报（%%） = %.4f%%\n", avgReturn);
-
-    printf("========== 连败统计（1..12） ==========\n");
-    for (int i = 0; i < 12; i++) {
-        printf("连输%d: %d\n", i+1, self.lossStreaks[i].intValue);
-    }
 }
+
+- (void)scrollChartToRight {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        UIScrollView *scrollView = self.scrollView;
+        if (!scrollView) return;
+
+        CGFloat maxOffsetX = scrollView.contentSize.width - scrollView.bounds.size.width;
+        if (maxOffsetX < 0) maxOffsetX = 0;
+
+        [scrollView setContentOffset:CGPointMake(maxOffsetX, 0) animated:NO];
+    });
+}
+
+//- (void)printBacktestSummary {
+//
+//    printf("============================\n");
+//    printf("===== 固定参数回测结果 =====\n");
+//    printf("============================\n");
+//
+//    printf("TP = %.3f%%\n", TP_Parameter * 100);
+//    printf("SL = %.3f%%\n", SL_Parameter * 100);
+//    printf("最终资金乘数 = %.6f\n", self.finalBalance);
+//    printf("交易笔数 = %ld\n", (long)self.tradeCount);
+//    printf("获利笔数 = %ld\n", (long)self.winTrades);
+//    double winRate = 0.0;
+//    if (self.tradeCount > 0) {
+//        winRate = (double)self.winTrades / self.tradeCount * 100.0;
+//    }
+//    printf("胜率 = %.2f%%\n", winRate);
+//    double avgReturn = 0;
+//    if (self.returnsArray.count > 0) {
+//        double sum = 0;
+//        for (NSNumber *n in self.returnsArray) sum += n.doubleValue;
+//        avgReturn = sum / self.returnsArray.count;
+//    }
+//    printf("赢的次数 = %ld\n", (long)self.winCount);
+//    printf("输的次数 = %ld\n", (long)self.lowerCount);
+//    printf("平均每笔回报（%%） = %.4f%%\n", avgReturn);
+//
+//    printf("========== 连败统计（1..12） ==========\n");
+//    for (int i = 0; i < 12; i++) {
+//        printf("连输%d: %d\n", i+1, self.lossStreaks[i].intValue);
+//    }
+//}
 
 
 // 计算 RSI
@@ -949,68 +1024,13 @@ typedef void(^KLineScaleAction)(BOOL clickState);
 
 
 
-//计算 股票图的contentSize.width(可滑动的宽度)
-- (void)setupChartView:(CGFloat)chartHeight {
-    CGFloat width = self.allKLineData.count * (8 + space);
-    KLineChartView *chartView = [[KLineChartView alloc] initWithFrame:CGRectMake(0, self.view.bounds.size.height - chartHeight - SAFE_AREA_BOTTOM, width, chartHeight)];
-    chartView.backgroundColor = [[UIColor grayColor] colorWithAlphaComponent:0.2];
-    chartView.visibleKLineData = self.allKLineData;
-    //移除scrollView上面的所有子控件
-    [self.scrollView.subviews makeObjectsPerformSelector:@selector(removeFromSuperview)];
-    [self.scrollView addSubview:chartView];
-    self.scrollView.contentSize = chartView.bounds.size;
-    self.chartView = chartView;
-    
-    // 滑动到最右侧
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.03 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        [self scrollChartToRight];
-    });
-
-}
-
-- (void)scrollChartToRight {
-    dispatch_async(dispatch_get_main_queue(), ^{
-        UIScrollView *scrollView = self.scrollView;
-        if (!scrollView) return;
-
-        CGFloat maxOffsetX = scrollView.contentSize.width - scrollView.bounds.size.width;
-        if (maxOffsetX < 0) maxOffsetX = 0;
-
-        [scrollView setContentOffset:CGPointMake(maxOffsetX, 0) animated:NO];
-    });
-}
 
 
-//读取 全部的本地文件
-//- (NSArray<KLineModel *> *)loadAllData {
-//    NSMutableArray *result = [NSMutableArray array];
-//    NSArray *paths = [[NSBundle mainBundle] pathsForResourcesOfType:@"json" inDirectory:nil];
-//    NSArray *sortedPaths = [paths sortedArrayUsingComparator:^NSComparisonResult(NSString *p1, NSString *p2) {
-//        return [[p1 lastPathComponent] localizedStandardCompare:[p2 lastPathComponent]];
-//    }];
-//
-//    for (NSString *filePath in sortedPaths) {
-//        NSData *data = [NSData dataWithContentsOfFile:filePath];
-//        if (!data) continue;
-//        NSError *error;
-//        NSDictionary *json = [NSJSONSerialization JSONObjectWithData:data options:kNilOptions error:&error];
-//        if (error) continue;
-//        NSArray *klineList = json[@"data"][@"kline_list"];
-//        for (NSDictionary *dict in klineList) {
-//            KLineModel *model = [[KLineModel alloc] init];
-//            model.open = [dict[@"open_price"] floatValue];
-//            model.high = [dict[@"high_price"] floatValue];
-//            model.low = [dict[@"low_price"] floatValue];
-//            model.close = [dict[@"close_price"] floatValue];
-//            model.timestamp = [dict[@"timestamp"] doubleValue];
-//            model.volume = [dict[@"volume"] floatValue];
-//            [result addObject:model];
-//        }
-//    }
-//    return result;
-//}
 
--(NSArray<KLineModel *> *)data_0 {
+
+
+//其实数据
+-(NSMutableArray<KLineModel *> *)data_initial {
     NSMutableArray *result = [NSMutableArray array];
     NSMutableArray *filePathArr = [NSMutableArray array];
     NSString *filePath_0 = [[NSBundle mainBundle] pathForResource:@"2025-01-02--2025-01-03" ofType:@"json"];
@@ -1043,11 +1063,36 @@ typedef void(^KLineScaleAction)(BOOL clickState);
     return result;
 }
 
-// 根据index 读取后面的300个模型数据
-- (NSArray<KLineModel *> *)loadDataFromIndex:(NSInteger)start count:(NSInteger)count {
-    if (start < 0) start = 0;
-    NSInteger end = MIN(start + count, self.allKLineData.count);
-    return [self.allKLineData subarrayWithRange:NSMakeRange(start, end - start)];
+//读取 未来的k线数据
+- (NSMutableArray<KLineModel *> *)data_future {
+    NSMutableArray *result = [NSMutableArray array];
+    NSArray *paths = [[NSBundle mainBundle] pathsForResourcesOfType:@"json" inDirectory:nil];
+    NSArray *sortedPaths = [paths sortedArrayUsingComparator:^NSComparisonResult(NSString *p1, NSString *p2) {
+        return [[p1 lastPathComponent] localizedStandardCompare:[p2 lastPathComponent]];
+    }];
+
+    for (NSString *filePath in sortedPaths) {
+        if ([[filePath lastPathComponent] isEqualToString:@"2025-01-02--2025-01-03.json"] || [[filePath lastPathComponent] isEqualToString:@"2025-01-03--2025-01-04.json"]) {
+            continue;
+        }
+        NSData *data = [NSData dataWithContentsOfFile:filePath];
+        if (!data) continue;
+        NSError *error;
+        NSDictionary *json = [NSJSONSerialization JSONObjectWithData:data options:kNilOptions error:&error];
+        if (error) continue;
+        NSArray *klineList = json[@"data"][@"kline_list"];
+        for (NSDictionary *dict in klineList) {
+            KLineModel *model = [[KLineModel alloc] init];
+            model.open = [dict[@"open_price"] floatValue];
+            model.high = [dict[@"high_price"] floatValue];
+            model.low = [dict[@"low_price"] floatValue];
+            model.close = [dict[@"close_price"] floatValue];
+            model.timestamp = [dict[@"timestamp"] doubleValue];
+            model.volume = [dict[@"volume"] floatValue];
+            [result addObject:model];
+        }
+    }
+    return result;
 }
 
 // 左右滑动执行
