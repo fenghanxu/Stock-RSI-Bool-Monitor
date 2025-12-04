@@ -115,6 +115,11 @@
     self.saleLabel.textInsets = UIEdgeInsetsMake(0, 10, 0, 10);
     self.saleLabel.str(@"买入").fnt(14).bgColor(self.list[arc4random_uniform((uint32_t)self.list.count)]).borderRadius(15).centerAlignment.fixWH(50,30);
     
+    self.directionLabel = [PaddingLabel new];
+    self.directionLabel.textColor = [UIColor whiteColor];
+    self.directionLabel.textInsets = UIEdgeInsetsMake(0, 10, 0, 10);
+    self.directionLabel.str(@"做空").fnt(14).bgColor(self.list[arc4random_uniform((uint32_t)self.list.count)]).borderRadius(15).centerAlignment.fixWH(50,30);
+    
     self.buyTimeLabel = [PaddingLabel new];
     self.buyTimeLabel.textColor = [UIColor whiteColor];
     self.buyTimeLabel.textInsets = UIEdgeInsetsMake(0, 10, 0, 10);
@@ -125,20 +130,17 @@
     self.buyPriceLabel.textInsets = UIEdgeInsetsMake(0, 10, 0, 10);
     self.buyPriceLabel.str(@"买入价: 999999").fnt(14).bgColor(self.list[arc4random_uniform((uint32_t)self.list.count)]).borderRadius(15).centerAlignment.fixWH(130,30);
     
-    self.directionLabel = [PaddingLabel new];
-    self.directionLabel.textColor = [UIColor whiteColor];
-    self.directionLabel.textInsets = UIEdgeInsetsMake(0, 10, 0, 10);
-    self.directionLabel.str(@"做空").fnt(14).bgColor(self.list[arc4random_uniform((uint32_t)self.list.count)]).borderRadius(15).centerAlignment.fixWH(50,30);
+
     
     id H = HorStack(
              NERSpring,
             self.saleLabel,
+            NERSpring,
+            self.directionLabel,
              NERSpring,
             self.buyTimeLabel,
              NERSpring,
              self.buyPriceLabel,
-             NERSpring,
-             self.directionLabel,
              NERSpring
        );
     

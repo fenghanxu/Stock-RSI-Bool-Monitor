@@ -5,6 +5,8 @@
 #import "UIColor+Hex.h"
 #import "PaddingLabel.h"
 #import "TableViewCell.h"
+#import "BusinessModel.h"
+
 #define viewHeight 300 // 蜡烛图高度
 #define space 3 // 每条蜡烛图的间隙
 #define volumeHeight 80  // 成交量图形高度
@@ -452,7 +454,7 @@ typedef void(^KLineScaleAction)(BOOL clickState);
     KLineModel *maxModel = self.visibleKLineData[maxIndex];
     KLineModel *minModel = self.visibleKLineData[minIndex];
 
-    // ⭐⭐⭐ 关键修改点：从蜡烛中间开始（不是最左边） ⭐⭐⭐
+    // 从蜡烛中间开始
     CGFloat candleFullWidth = self.candleWidth + space;
     CGFloat maxX = maxIndex * candleFullWidth + self.candleWidth * 0.5;
     CGFloat minX = minIndex * candleFullWidth + self.candleWidth * 0.5;
@@ -571,7 +573,7 @@ typedef void(^KLineScaleAction)(BOOL clickState);
 @property (nonatomic, strong) PaddingLabel *profitQuantityLabel;//盈利数量
 @property (nonatomic, strong) PaddingLabel *winningRateLabel;//胜率
 @property (nonatomic, strong) UITableView  *tableView;
-
+@property (nonatomic, strong) NSMutableArray<BusinessModel *> *tableViewList;
 
 @property (nonatomic, strong) NSMutableArray<KLineModel *> *allKLineData;
 @property (nonatomic, strong) NSMutableArray<KLineModel *> *futureKLineData;
@@ -594,6 +596,7 @@ typedef void(^KLineScaleAction)(BOOL clickState);
     self.view.backgroundColor = UIColor.whiteColor;
     [self buildUI];
 
+    self.tableViewList     = [NSMutableArray<BusinessModel *> new];
     self.allKLineData      = [NSMutableArray<KLineModel *> new];
     self.futureKLineData   = [NSMutableArray<KLineModel *> new];
     self.finalBalance      = 1.0;
@@ -738,7 +741,7 @@ typedef void(^KLineScaleAction)(BOOL clickState);
 
 }
 
-#pragma  mark UITableViewDelegate 的代理方法
+#pragma  mark -- UITableViewDelegate 的代理方法
 //设置行数
 -(NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
     return 10;
@@ -904,6 +907,15 @@ typedef void(^KLineScaleAction)(BOOL clickState);
                 waitForRise = NO;
                 waitForDrop = NO;
 
+                //买入价格
+                NSString *buySellPriceString = [NSString stringWithFormat:@"%.2f",m.close];
+                //买入时间
+                NSDate *buy_date = [NSDate dateWithTimeIntervalSince1970:m.timestamp];
+                NSDateFormatter *buy_formatter = [[NSDateFormatter alloc] init];
+                buy_formatter.dateFormat = @"yyyy-MM-dd HH";
+                NSString *buy_dateStr = [buy_formatter stringFromDate:buy_date];
+                BusinessModel *model = [[BusinessModel alloc] initWithBuySel:@"买入" buySelTime:buy_dateStr buySellPrice:buySellPriceString longShort:@"做多" profitLoss:0.0];
+                [self.tableViewList addObject:model];
                 continue;
             }
         }
@@ -923,6 +935,15 @@ typedef void(^KLineScaleAction)(BOOL clickState);
                 waitForDrop = NO;
                 waitForRise = NO;
 
+                //买入价格
+                NSString *buySellPriceString = [NSString stringWithFormat:@"%.2f",m.close];
+                //买入时间
+                NSDate *buy_date = [NSDate dateWithTimeIntervalSince1970:m.timestamp];
+                NSDateFormatter *buy_formatter = [[NSDateFormatter alloc] init];
+                buy_formatter.dateFormat = @"yyyy-MM-dd HH";
+                NSString *buy_dateStr = [buy_formatter stringFromDate:buy_date];
+                BusinessModel *model = [[BusinessModel alloc] initWithBuySel:@"买入" buySelTime:buy_dateStr buySellPrice:buySellPriceString longShort:@"做空" profitLoss:0.0];
+                [self.tableViewList addObject:model];
                 continue;
             }
         }
@@ -1004,18 +1025,21 @@ typedef void(^KLineScaleAction)(BOOL clickState);
             self.winCount++;
             self.allKLineData[i].signalTag = @"赚";
             
-            NSDate *buy_date = [NSDate dateWithTimeIntervalSince1970:self.allKLineData[buyIndex].timestamp];
-            NSDateFormatter *buy_formatter = [[NSDateFormatter alloc] init];
-            buy_formatter.dateFormat = @"yyyy-MM-dd HH";
-            NSString *buy_dateStr = [buy_formatter stringFromDate:buy_date];
-            
+//            NSDate *buy_date = [NSDate dateWithTimeIntervalSince1970:self.allKLineData[buyIndex].timestamp];
+//            NSDateFormatter *buy_formatter = [[NSDateFormatter alloc] init];
+//            buy_formatter.dateFormat = @"yyyy-MM-dd HH";
+//            NSString *buy_dateStr = [buy_formatter stringFromDate:buy_date];
+            //卖出时间
             NSDate *sall_date = [NSDate dateWithTimeIntervalSince1970:self.allKLineData[i].timestamp];
             NSDateFormatter *sall_formatter = [[NSDateFormatter alloc] init];
             sall_formatter.dateFormat = @"yyyy-MM-dd HH";
             NSString *sall_dateStr = [sall_formatter stringFromDate:sall_date];
-                        
-            NSLog(@"WIN 多单 | 买入时间: %@ | 卖出时间: %@ | 买: %.2f | 卖: %.2f | 盈利 %.2f%%",
-                  buy_dateStr, sall_dateStr, buyPrice, TP, (TP-buyPrice)/buyPrice*100);
+                    
+            //卖出价格
+            NSString *buySellPriceString = [NSString stringWithFormat:@"%.2f",self.allKLineData[buyIndex].high];
+            BusinessModel *model = [[BusinessModel alloc] initWithBuySel:@"卖出" buySelTime:sall_dateStr buySellPrice:buySellPriceString longShort:@"盈利" profitLoss:5.9];
+            [self.tableViewList addObject:model];
+            //NSLog(@"WIN 多单 | 买入时间: %@ | 卖出时间: %@ | 买: %.2f | 卖: %.2f | 盈利 %.2f%%", buy_dateStr, sall_dateStr, buyPrice, TP, (TP-buyPrice)/buyPrice*100);
             
             // ======== 统计部分开始 ========
             // 总交易笔数
@@ -1049,18 +1073,21 @@ typedef void(^KLineScaleAction)(BOOL clickState);
             self.lowerCount++;
             self.allKLineData[i].signalTag = @"亏";
             
-            NSDate *buy_date = [NSDate dateWithTimeIntervalSince1970:self.allKLineData[buyIndex].timestamp];
-            NSDateFormatter *buy_formatter = [[NSDateFormatter alloc] init];
-            buy_formatter.dateFormat = @"yyyy-MM-dd HH";
-            NSString *buy_dateStr = [buy_formatter stringFromDate:buy_date];
+//            NSDate *buy_date = [NSDate dateWithTimeIntervalSince1970:self.allKLineData[buyIndex].timestamp];
+//            NSDateFormatter *buy_formatter = [[NSDateFormatter alloc] init];
+//            buy_formatter.dateFormat = @"yyyy-MM-dd HH";
+//            NSString *buy_dateStr = [buy_formatter stringFromDate:buy_date];
             
             NSDate *sall_date = [NSDate dateWithTimeIntervalSince1970:self.allKLineData[i].timestamp];
             NSDateFormatter *sall_formatter = [[NSDateFormatter alloc] init];
             sall_formatter.dateFormat = @"yyyy-MM-dd HH";
             NSString *sall_dateStr = [sall_formatter stringFromDate:sall_date];
             
-            NSLog(@"LOSE 多单 | 买入时间: %@ | 卖出时间: %@ | 买: %.2f | 卖: %.2f | 盈利 %.2f%%",
-                  buy_dateStr, sall_dateStr, buyPrice, SL, (SL-buyPrice)/buyPrice*100);
+            //卖出价格
+            NSString *buySellPriceString = [NSString stringWithFormat:@"%.2f",self.allKLineData[buyIndex].low];
+            BusinessModel *model = [[BusinessModel alloc] initWithBuySel:@"卖出" buySelTime:sall_dateStr buySellPrice:buySellPriceString longShort:@"亏损" profitLoss:-1.7];
+            [self.tableViewList addObject:model];
+            //NSLog(@"LOSE 多单 | 买入时间: %@ | 卖出时间: %@ | 买: %.2f | 卖: %.2f | 盈利 %.2f%%", buy_dateStr, sall_dateStr, buyPrice, SL, (SL-buyPrice)/buyPrice*100);
             
             // ======== 统计部分开始 ========
             // 总交易笔数
@@ -1090,18 +1117,21 @@ typedef void(^KLineScaleAction)(BOOL clickState);
             self.winCount++;
             self.allKLineData[i].signalTag = @"赚";
             
-            NSDate *buy_date = [NSDate dateWithTimeIntervalSince1970:self.allKLineData[buyIndex].timestamp];
-            NSDateFormatter *buy_formatter = [[NSDateFormatter alloc] init];
-            buy_formatter.dateFormat = @"yyyy-MM-dd HH";
-            NSString *buy_dateStr = [buy_formatter stringFromDate:buy_date];
+//            NSDate *buy_date = [NSDate dateWithTimeIntervalSince1970:self.allKLineData[buyIndex].timestamp];
+//            NSDateFormatter *buy_formatter = [[NSDateFormatter alloc] init];
+//            buy_formatter.dateFormat = @"yyyy-MM-dd HH";
+//            NSString *buy_dateStr = [buy_formatter stringFromDate:buy_date];
             
             NSDate *sall_date = [NSDate dateWithTimeIntervalSince1970:self.allKLineData[i].timestamp];
             NSDateFormatter *sall_formatter = [[NSDateFormatter alloc] init];
             sall_formatter.dateFormat = @"yyyy-MM-dd HH";
             NSString *sall_dateStr = [sall_formatter stringFromDate:sall_date];
             
-            NSLog(@"WIN 空单 | 买入时间: %@ | 卖出时间: %@ | 卖空: %.2f | 平仓: %.2f | 盈利 %.2f%%",
-                  buy_dateStr, sall_dateStr, buyPrice, TP, (buyPrice-TP)/buyPrice*100);
+            //卖出价格
+            NSString *buySellPriceString = [NSString stringWithFormat:@"%.2f",self.allKLineData[buyIndex].low];
+            BusinessModel *model = [[BusinessModel alloc] initWithBuySel:@"卖出" buySelTime:sall_dateStr buySellPrice:buySellPriceString longShort:@"盈利" profitLoss:5.9];
+            [self.tableViewList addObject:model];
+            //NSLog(@"WIN 空单 | 买入时间: %@ | 卖出时间: %@ | 卖空: %.2f | 平仓: %.2f | 盈利 %.2f%%", buy_dateStr, sall_dateStr, buyPrice, TP, (buyPrice-TP)/buyPrice*100);
             
             // ======== 统计部分开始 ========
             // 总交易笔数
@@ -1133,18 +1163,21 @@ typedef void(^KLineScaleAction)(BOOL clickState);
             self.lowerCount++;
             self.allKLineData[i].signalTag = @"亏";
             
-            NSDate *buy_date = [NSDate dateWithTimeIntervalSince1970:self.allKLineData[buyIndex].timestamp];
-            NSDateFormatter *buy_formatter = [[NSDateFormatter alloc] init];
-            buy_formatter.dateFormat = @"yyyy-MM-dd HH";
-            NSString *buy_dateStr = [buy_formatter stringFromDate:buy_date];
+//            NSDate *buy_date = [NSDate dateWithTimeIntervalSince1970:self.allKLineData[buyIndex].timestamp];
+//            NSDateFormatter *buy_formatter = [[NSDateFormatter alloc] init];
+//            buy_formatter.dateFormat = @"yyyy-MM-dd HH";
+//            NSString *buy_dateStr = [buy_formatter stringFromDate:buy_date];
             
             NSDate *sall_date = [NSDate dateWithTimeIntervalSince1970:self.allKLineData[i].timestamp];
             NSDateFormatter *sall_formatter = [[NSDateFormatter alloc] init];
             sall_formatter.dateFormat = @"yyyy-MM-dd HH";
             NSString *sall_dateStr = [sall_formatter stringFromDate:sall_date];
             
-            NSLog(@"LOSE 空单 | 买入时间: %@ | 卖出时间: %@ | 卖空: %.2f | 平仓: %.2f | 盈利 %.2f%%",
-                  buy_dateStr, sall_dateStr, buyPrice, SL, (buyPrice-SL)/buyPrice*100);
+            //卖出价格
+            NSString *buySellPriceString = [NSString stringWithFormat:@"%.2f",self.allKLineData[buyIndex].low];
+            BusinessModel *model = [[BusinessModel alloc] initWithBuySel:@"卖出" buySelTime:sall_dateStr buySellPrice:buySellPriceString longShort:@"亏损" profitLoss:-1.7];
+            [self.tableViewList addObject:model];
+            //NSLog(@"LOSE 空单 | 买入时间: %@ | 卖出时间: %@ | 卖空: %.2f | 平仓: %.2f | 盈利 %.2f%%", buy_dateStr, sall_dateStr, buyPrice, SL, (buyPrice-SL)/buyPrice*100);
             
             // ======== 统计部分开始 ========
             // 总交易笔数
