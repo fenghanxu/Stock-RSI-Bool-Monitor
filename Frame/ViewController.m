@@ -151,6 +151,50 @@ typedef void(^KLineScaleAction)(BOOL clickState);
 
     // 创建绘图上下文（画布对象）“画布 + 画笔 + 样式设置”
     CGContextRef ctx = UIGraphicsGetCurrentContext();
+    
+    //===================== 绘制底部虚线网格 =====================//
+
+    CGFloat gridTop = 0;                      // 网格顶部
+    CGFloat gridBottom = viewHeight;          // 蜡烛图高度
+    CGFloat gridLeft = 0;
+    CGFloat gridRight = self.bounds.size.width;
+
+    // 你想要分几段
+    int horizontalLines = 6;   // 横向（价格方向）虚线数量
+    int verticalLines = 160;     // 纵向（时间方向）虚线数量
+
+    // 虚线样式：线长=空隙长
+    CGFloat dashPattern[] = {6, 6};
+    CGContextSetLineDash(ctx, 0, dashPattern, 2);
+    CGContextSetLineWidth(ctx, 0.6);
+    CGContextSetStrokeColorWithColor(ctx, [UIColor colorWithWhite:0.85 alpha:1].CGColor);
+
+    //
+    // ----------- 画横向虚线（等距）-----------
+    //
+    for (int i = 1; i < horizontalLines; i++) {
+        CGFloat y = gridTop + (gridBottom - gridTop) * (i * 1.0 / horizontalLines);
+
+        CGContextMoveToPoint(ctx, gridLeft, y);
+        CGContextAddLineToPoint(ctx, gridRight, y);
+        CGContextStrokePath(ctx);
+    }
+
+    //
+    // ----------- 画纵向虚线（等距）-----------
+    //
+    for (int i = 1; i < verticalLines; i++) {
+        CGFloat x = gridLeft + (gridRight - gridLeft) * (i * 1.0 / verticalLines);
+
+        CGContextMoveToPoint(ctx, x, gridTop);
+        CGContextAddLineToPoint(ctx, x, gridBottom);
+        CGContextStrokePath(ctx);
+    }
+
+    // 关闭虚线
+    CGContextSetLineDash(ctx, 0, NULL, 0);
+    
+    //===================== 计算 max / min =====================//
 
     // 可视view  显示的个数
     NSInteger countInView = ceil(SCREEN_WIDTH / (self.candleWidth + space)) + 1;
@@ -192,51 +236,8 @@ typedef void(^KLineScaleAction)(BOOL clickState);
     CGFloat volumeScale = (maxVolume > 0) ? (volumeDrawHeight / maxVolume) : 0;
     
     CGFloat rsiTop = volumeTop + volumeHeight + 10;
-
     
-    //===================== 绘制底部虚线网格 =====================//
-
-    CGFloat gridTop = 0;                      // 网格顶部
-    CGFloat gridBottom = viewHeight;          // 蜡烛图高度
-    CGFloat gridLeft = 0;
-    CGFloat gridRight = self.bounds.size.width;
-
-    // 你想要分几段
-    int horizontalLines = 6;   // 横向（价格方向）虚线数量
-    int verticalLines = 80;     // 纵向（时间方向）虚线数量
-
-    // 虚线样式：线长=空隙长
-    CGFloat dashPattern[] = {6, 6};
-    CGContextSetLineDash(ctx, 0, dashPattern, 2);
-    CGContextSetLineWidth(ctx, 0.6);
-    CGContextSetStrokeColorWithColor(ctx, [UIColor colorWithWhite:0.85 alpha:1].CGColor);
-
-    //
-    // ----------- 画横向虚线（等距）-----------
-    //
-    for (int i = 1; i < horizontalLines; i++) {
-        CGFloat y = gridTop + (gridBottom - gridTop) * (i * 1.0 / horizontalLines);
-
-        CGContextMoveToPoint(ctx, gridLeft, y);
-        CGContextAddLineToPoint(ctx, gridRight, y);
-        CGContextStrokePath(ctx);
-    }
-
-    //
-    // ----------- 画纵向虚线（等距）-----------
-    //
-    for (int i = 1; i < verticalLines; i++) {
-        CGFloat x = gridLeft + (gridRight - gridLeft) * (i * 1.0 / verticalLines);
-
-        CGContextMoveToPoint(ctx, x, gridTop);
-        CGContextAddLineToPoint(ctx, x, gridBottom);
-        CGContextStrokePath(ctx);
-    }
-
-    // 关闭虚线
-    CGContextSetLineDash(ctx, 0, NULL, 0);
-    
-    
+    //===================== 绘制K线 =====================//
     // for循环遍历可视化的绘制数据
     for (NSInteger i = startIndex; i < endIndex; i++) {
         //绘制 K线
