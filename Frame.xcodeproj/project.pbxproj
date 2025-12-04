@@ -142,6 +142,9 @@
 		2D151CCB2ED6A289001B883F /* 2025-03-13--2025-03-14.json in Resources */ = {isa = PBXBuildFile; fileRef = 2D1519B22ED6A288001B883F /* 2025-03-13--2025-03-14.json */; };
 		2D151CCD2ED6A289001B883F /* 2025-04-25--2025-04-26.json in Resources */ = {isa = PBXBuildFile; fileRef = 2D1519D52ED6A288001B883F /* 2025-04-25--2025-04-26.json */; };
 		2D62DC1025DE4DF400A05E5E /* nahuoLoading.gif in Resources */ = {isa = PBXBuildFile; fileRef = 2D62DC0F25DE4DF400A05E5E /* nahuoLoading.gif */; };
+		2DA0A6452EE16CFF00FBEFC1 /* UIColor+Hex.m in Sources */ = {isa = PBXBuildFile; fileRef = 2DA0A6442EE16CFF00FBEFC1 /* UIColor+Hex.m */; };
+		2DA0A6482EE16E6500FBEFC1 /* PaddingLabel.m in Sources */ = {isa = PBXBuildFile; fileRef = 2DA0A6472EE16E6500FBEFC1 /* PaddingLabel.m */; };
+		2DA0A64B2EE1728700FBEFC1 /* TableViewCell.m in Sources */ = {isa = PBXBuildFile; fileRef = 2DA0A64A2EE1728700FBEFC1 /* TableViewCell.m */; };
 		2DEA410325D002E1008FA2A8 /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 2DEA410225D002E1008FA2A8 /* AppDelegate.m */; };
 		2DEA410625D002E1008FA2A8 /* SceneDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 2DEA410525D002E1008FA2A8 /* SceneDelegate.m */; };
 		2DEA410925D002E1008FA2A8 /* ViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 2DEA410825D002E1008FA2A8 /* ViewController.m */; };
@@ -309,6 +312,12 @@
 		2D1519FE2ED6A288001B883F /* 2025-06-16--2025-06-17.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "2025-06-16--2025-06-17.json"; sourceTree = "<group>"; };
 		2D1519FF2ED6A288001B883F /* 2025-06-17--2025-06-18.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "2025-06-17--2025-06-18.json"; sourceTree = "<group>"; };
 		2D62DC0F25DE4DF400A05E5E /* nahuoLoading.gif */ = {isa = PBXFileReference; lastKnownFileType = image.gif; path = nahuoLoading.gif; sourceTree = "<group>"; };
+		2DA0A6432EE16CFF00FBEFC1 /* UIColor+Hex.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "UIColor+Hex.h"; sourceTree = "<group>"; };
+		2DA0A6442EE16CFF00FBEFC1 /* UIColor+Hex.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "UIColor+Hex.m"; sourceTree = "<group>"; };
+		2DA0A6462EE16E6500FBEFC1 /* PaddingLabel.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = PaddingLabel.h; sourceTree = "<group>"; };
+		2DA0A6472EE16E6500FBEFC1 /* PaddingLabel.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = PaddingLabel.m; sourceTree = "<group>"; };
+		2DA0A6492EE1728700FBEFC1 /* TableViewCell.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = TableViewCell.h; sourceTree = "<group>"; };
+		2DA0A64A2EE1728700FBEFC1 /* TableViewCell.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = TableViewCell.m; sourceTree = "<group>"; };
 		2DD6F7B225E33DAA00422046 /* CocoaPodHeader.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = CocoaPodHeader.h; sourceTree = "<group>"; };
 		2DEA40FE25D002E1008FA2A8 /* Frame.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Frame.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		2DEA410125D002E1008FA2A8 /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
@@ -537,6 +546,12 @@
 				2DEA410525D002E1008FA2A8 /* SceneDelegate.m */,
 				2DEA410725D002E1008FA2A8 /* ViewController.h */,
 				2DEA410825D002E1008FA2A8 /* ViewController.m */,
+				2DA0A6492EE1728700FBEFC1 /* TableViewCell.h */,
+				2DA0A64A2EE1728700FBEFC1 /* TableViewCell.m */,
+				2DA0A6432EE16CFF00FBEFC1 /* UIColor+Hex.h */,
+				2DA0A6442EE16CFF00FBEFC1 /* UIColor+Hex.m */,
+				2DA0A6462EE16E6500FBEFC1 /* PaddingLabel.h */,
+				2DA0A6472EE16E6500FBEFC1 /* PaddingLabel.m */,
 				2DFB29892EE00D7B00D7309C /* MyTimer.h */,
 				2DFB298A2EE00D7B00D7309C /* MyTimer.m */,
 				2DAF56FA2E320ACE00EDBDF1 /* 1小时BTC */,
@@ -919,8 +934,11 @@
 			buildActionMask = 2147483647;
 			files = (
 				2DFB298B2EE00D7B00D7309C /* MyTimer.m in Sources */,
+				2DA0A6452EE16CFF00FBEFC1 /* UIColor+Hex.m in Sources */,
 				2DEA410925D002E1008FA2A8 /* ViewController.m in Sources */,
+				2DA0A6482EE16E6500FBEFC1 /* PaddingLabel.m in Sources */,
 				2DEA410325D002E1008FA2A8 /* AppDelegate.m in Sources */,
+				2DA0A64B2EE1728700FBEFC1 /* TableViewCell.m in Sources */,
 				2DEA411425D002E3008FA2A8 /* main.m in Sources */,
 				2DEA410625D002E1008FA2A8 /* SceneDelegate.m in Sources */,
 			);
