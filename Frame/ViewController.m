@@ -210,8 +210,12 @@ typedef void(^KLineScaleAction)(BOOL clickState);
 
     for (NSInteger i = startIndex; i < endIndex; i++) {
         KLineModel *model = self.visibleKLineData[i];
+        // 考虑蜡烛图和布林线上下轨
         maxPrice = MAX(maxPrice, model.high);
+//        maxPrice = MAX(maxPrice, model.bollUpper);
+        
         minPrice = MIN(minPrice, model.low);
+//        minPrice = MIN(minPrice, model.bollLower);
         maxVolume = MAX(maxVolume, model.volume);
     }
 
@@ -376,7 +380,7 @@ typedef void(^KLineScaleAction)(BOOL clickState);
     CGContextSetLineWidth(ctx, 1.0);
 
     // 中轨线 (黄色)
-    CGContextSetStrokeColorWithColor(ctx, [UIColor yellowColor].CGColor);
+    CGContextSetStrokeColorWithColor(ctx, [UIColor colorWithHexString:@"FF00FF"].CGColor);
     for (NSInteger i = startIndex; i < endIndex - 1; i++) {
         KLineModel *m1 = self.visibleKLineData[i];
         KLineModel *m2 = self.visibleKLineData[i+1];
@@ -395,7 +399,7 @@ typedef void(^KLineScaleAction)(BOOL clickState);
     }
 
     // 上轨线 (蓝色)
-    CGContextSetStrokeColorWithColor(ctx, [UIColor blueColor].CGColor);
+    CGContextSetStrokeColorWithColor(ctx, [UIColor colorWithHexString:@"FFA500"].CGColor);
     for (NSInteger i = startIndex; i < endIndex - 1; i++) {
         KLineModel *m1 = self.visibleKLineData[i];
         KLineModel *m2 = self.visibleKLineData[i+1];
@@ -414,7 +418,7 @@ typedef void(^KLineScaleAction)(BOOL clickState);
     }
 
     // 下轨线 (黑色)
-    CGContextSetStrokeColorWithColor(ctx, [UIColor blackColor].CGColor);
+    CGContextSetStrokeColorWithColor(ctx, [UIColor colorWithHexString:@"6A5ACD"].CGColor);
     for (NSInteger i = startIndex; i < endIndex - 1; i++) {
         KLineModel *m1 = self.visibleKLineData[i];
         KLineModel *m2 = self.visibleKLineData[i+1];
@@ -431,6 +435,74 @@ typedef void(^KLineScaleAction)(BOOL clickState);
         CGContextAddLineToPoint(ctx, x2, y2);
         CGContextStrokePath(ctx);
     }
+    
+    // =================== 可视范围内最高价 / 最低价 标记 ===================
+
+    // 1. 找到最高价、最低价出现的 index
+    NSInteger maxIndex = startIndex;
+    NSInteger minIndex = startIndex;
+
+    for (NSInteger i = startIndex; i < endIndex; i++) {
+        KLineModel *m = self.visibleKLineData[i];
+        if (m.high >= maxPrice - padding) maxIndex = i;
+        if (m.low  <= minPrice + padding) minIndex = i;
+    }
+
+    // 2. 转换为坐标
+    KLineModel *maxModel = self.visibleKLineData[maxIndex];
+    KLineModel *minModel = self.visibleKLineData[minIndex];
+
+    // ⭐⭐⭐ 关键修改点：从蜡烛中间开始（不是最左边） ⭐⭐⭐
+    CGFloat candleFullWidth = self.candleWidth + space;
+    CGFloat maxX = maxIndex * candleFullWidth + self.candleWidth * 0.5;
+    CGFloat minX = minIndex * candleFullWidth + self.candleWidth * 0.5;
+
+    CGFloat maxY = (maxPrice - maxModel.high) * scale;
+    CGFloat minY = (maxPrice - minModel.low) * scale;
+
+    CGContextSetLineWidth(ctx, 1.0);
+    CGContextSetStrokeColorWithColor(ctx, [UIColor lightGrayColor].CGColor);
+
+    // 横线长度
+    CGFloat lineLength = 24;
+
+    // ========== 最高价（向左画线 + 左侧写字） ==========
+    CGContextMoveToPoint(ctx, maxX, maxY);
+    CGContextAddLineToPoint(ctx, maxX - lineLength, maxY); // ← 向左
+    CGContextStrokePath(ctx);
+
+    // 写文字（放到左边）
+    NSString *maxText = [NSString stringWithFormat:@"%.2f", maxModel.high];
+    NSDictionary *maxAttr = @{
+        NSFontAttributeName: [UIFont boldSystemFontOfSize:10],
+        NSForegroundColorAttributeName: [UIColor lightGrayColor]
+    };
+    CGSize maxSize = [maxText sizeWithAttributes:maxAttr];
+    // ← 文本放在线左边（注意减去文字宽度）
+    [maxText drawAtPoint:CGPointMake(maxX - lineLength - 2 - maxSize.width,
+                                     maxY - maxSize.height/2)
+           withAttributes:maxAttr];
+
+
+    // ========== 最低价（向左画线 + 左侧写字） ==========
+    CGContextMoveToPoint(ctx, minX, minY);
+    CGContextAddLineToPoint(ctx, minX - lineLength, minY); // ← 向左
+    CGContextStrokePath(ctx);
+
+    // 写文字（放到左边）
+    NSString *minText = [NSString stringWithFormat:@"%.2f", minModel.low];
+    NSDictionary *minAttr = @{
+        NSFontAttributeName: [UIFont boldSystemFontOfSize:10],
+        NSForegroundColorAttributeName: [UIColor lightGrayColor]
+    };
+    CGSize minSize = [minText sizeWithAttributes:minAttr];
+
+    [minText drawAtPoint:CGPointMake(minX - lineLength - 2 - minSize.width,
+                                     minY - minSize.height/2)
+           withAttributes:minAttr];
+  
+
+
     
     //长按十字线
     if (self.showCrossLine) {
