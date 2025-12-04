@@ -2,6 +2,9 @@
 
 #import "ViewController.h"
 #import "MyTimer.h"
+#import "UIColor+Hex.h"
+#import "PaddingLabel.h"
+#import "TableViewCell.h"
 #define viewHeight 300 // 蜡烛图高度
 #define space 3 // 每条蜡烛图的间隙
 #define volumeHeight 80  // 成交量图形高度
@@ -148,6 +151,51 @@ typedef void(^KLineScaleAction)(BOOL clickState);
 
     // 创建绘图上下文（画布对象）“画布 + 画笔 + 样式设置”
     CGContextRef ctx = UIGraphicsGetCurrentContext();
+    
+    //===================== 绘制底部虚线网格 =====================//
+
+    CGFloat gridTop = 0;                      // 网格顶部
+    CGFloat gridBottom = viewHeight;          // 蜡烛图高度
+    CGFloat gridLeft = 0;
+    CGFloat gridRight = self.bounds.size.width;
+
+    // 你想要分几段
+    int horizontalLines = 6;   // 横向（价格方向）虚线数量
+    int verticalLines = 160;     // 纵向（时间方向）虚线数量
+
+    // 虚线样式：线长=空隙长
+    CGFloat dashPattern[] = {6, 6};
+    CGContextSetLineDash(ctx, 0, dashPattern, 2);
+    CGContextSetLineWidth(ctx, 0.6);
+    CGContextSetStrokeColorWithColor(ctx, [UIColor colorWithWhite:0.85 alpha:1].CGColor);
+
+    //
+    // ----------- 画横向虚线（等距）-----------
+    //
+    for (int i = 1; i < horizontalLines; i++) {
+        CGFloat y = gridTop + (gridBottom - gridTop) * (i * 1.0 / horizontalLines);
+
+        CGContextMoveToPoint(ctx, gridLeft, y);
+        CGContextAddLineToPoint(ctx, gridRight, y);
+        CGContextStrokePath(ctx);
+    }
+
+    //
+    // ----------- 画纵向虚线（等距）-----------
+    //
+    for (int i = 1; i < verticalLines; i++) {
+        CGFloat x = gridLeft + (gridRight - gridLeft) * (i * 1.0 / verticalLines);
+
+        CGContextMoveToPoint(ctx, x, gridTop);
+        CGContextAddLineToPoint(ctx, x, gridBottom);
+        CGContextStrokePath(ctx);
+    }
+
+    // 关闭虚线
+    CGContextSetLineDash(ctx, 0, NULL, 0);
+    
+    //===================== 计算 max / min =====================//
+
     // 可视view  显示的个数
     NSInteger countInView = ceil(SCREEN_WIDTH / (self.candleWidth + space)) + 1;
     // 可视view  开始的index
@@ -188,8 +236,8 @@ typedef void(^KLineScaleAction)(BOOL clickState);
     CGFloat volumeScale = (maxVolume > 0) ? (volumeDrawHeight / maxVolume) : 0;
     
     CGFloat rsiTop = volumeTop + volumeHeight + 10;
-
     
+    //===================== 绘制K线 =====================//
     // for循环遍历可视化的绘制数据
     for (NSInteger i = startIndex; i < endIndex; i++) {
         //绘制 K线
@@ -383,7 +431,6 @@ typedef void(^KLineScaleAction)(BOOL clickState);
         CGContextAddLineToPoint(ctx, x2, y2);
         CGContextStrokePath(ctx);
     }
-
     
     //长按十字线
     if (self.showCrossLine) {
@@ -443,10 +490,17 @@ typedef void(^KLineScaleAction)(BOOL clickState);
 
 @end
 
-@interface ViewController () <UIScrollViewDelegate>
+@interface ViewController () <UIScrollViewDelegate, UITableViewDataSource, UITableViewDelegate>
 @property (nonatomic, strong) MyTimer *myTimer;
 @property (nonatomic, strong) UIScrollView *scrollView;
 @property (nonatomic, strong) KLineChartView *chartView;
+@property (nonatomic, strong) PaddingLabel *lumpsumLabel;//总金额Label
+@property (nonatomic, strong) PaddingLabel *allQuantityLabel;//交易数量
+@property (nonatomic, strong) PaddingLabel *profitQuantityLabel;//盈利数量
+@property (nonatomic, strong) PaddingLabel *winningRateLabel;//胜率
+@property (nonatomic, strong) UITableView  *tableView;
+
+
 @property (nonatomic, strong) NSMutableArray<KLineModel *> *allKLineData;
 @property (nonatomic, strong) NSMutableArray<KLineModel *> *futureKLineData;
 
@@ -466,6 +520,7 @@ typedef void(^KLineScaleAction)(BOOL clickState);
 - (void)viewDidLoad {
     [super viewDidLoad];
     self.view.backgroundColor = UIColor.whiteColor;
+    [self buildUI];
 
     self.allKLineData      = [NSMutableArray<KLineModel *> new];
     self.futureKLineData   = [NSMutableArray<KLineModel *> new];
@@ -478,15 +533,18 @@ typedef void(^KLineScaleAction)(BOOL clickState);
     for (int i = 0; i < 12; i++) {
         [self.lossStreaks addObject:@0];
     }
+
+    self.futureKLineData     = [self creatDataWithTime:@"2025-02-09--2025-02-10.json" withFuture:YES];
+    self.allKLineData        = [self creatDataWithTime:@"2025-02-09--2025-02-10.json" withFuture:NO];
     
-    self.futureKLineData     = [self data_future];
-    self.allKLineData        = [self data_initial];
-    self.scrollView          = [[UIScrollView alloc] initWithFrame:self.view.bounds];
+    CGFloat chartViewHeight  = viewHeight + 10 + volumeHeight + 10 + rsiHeight;
+    CGRect scrollerRect = CGRectMake(0, SAFE_AREA_TOP_HEIGHT, SCREEN_WIDTH, chartViewHeight);
+    self.scrollView          = [[UIScrollView alloc] initWithFrame:scrollerRect];
     self.scrollView.delegate = self;
     [self.view addSubview:self.scrollView];
 
     //计算 股票图的contentSize.width(可滑动的宽度)
-    [self setupChartView:viewHeight + 10 + volumeHeight + 10 + rsiHeight];
+    [self setupChartView:chartViewHeight];
     //计算 RSI的模型数据
     [self calculateRSIWithPeriod:6];
     //计算BOLL的模型数据
@@ -500,43 +558,132 @@ typedef void(^KLineScaleAction)(BOOL clickState);
     //[self printBacktestSummary];
 
     
-    __weak typeof(self) weakSelf = self;
-    self.myTimer = [MyTimer scheduledTimerWithBlock:^{
-        [weakSelf.allKLineData addObject:weakSelf.futureKLineData.firstObject];
-        [weakSelf.futureKLineData removeObjectAtIndex:0];
-        [weakSelf.allKLineData removeObjectAtIndex:0];
-        //k线图赋值最新数据
-        weakSelf.chartView.visibleKLineData = weakSelf.allKLineData;
-        //重新绘制k线图
-        [weakSelf.chartView setNeedsDisplay];
-        //把k线图移动到最右边
-        dispatch_async(dispatch_get_main_queue(), ^{
-            UIScrollView *scrollView = weakSelf.scrollView;
-            if (!scrollView) return;
-            CGFloat maxOffsetX = scrollView.contentSize.width - scrollView.bounds.size.width;
-            if (maxOffsetX < 0) maxOffsetX = 0;
-            [scrollView setContentOffset:CGPointMake(maxOffsetX, 0) animated:NO];
-        });
-
-        //计算 RSI的模型数据
-        [weakSelf calculateRSIWithPeriod:6];
-        //计算BOLL的模型数据
-        [weakSelf calculateBOLLWithPeriod:20];
-        /*
-         1.当RSI>80 且 k线的实体上穿布林线的蓝色线(bollUpper)时,等到出现k线下跌的第一根(开盘价大于收盘价),在K线的顶部标记橙色买入的字样
-         2.当RSI<20 且 k线的实体下穿最底部布林线黑色(bollLower)时,等到出现k线上升的第一根(开盘价小于收盘价),在K线的顶部标记橙色买入的字样
-         */
-        [weakSelf detectRSI_BOLL_Signals];
-    }];
-    [self.myTimer start];
+//    __weak typeof(self) weakSelf = self;
+//    self.myTimer = [MyTimer scheduledTimerWithBlock:^{
+//        if (weakSelf.futureKLineData.count <= 0) {
+//            [self.myTimer pause];
+//            return;
+//        }
+//        [weakSelf.allKLineData addObject:weakSelf.futureKLineData.firstObject];
+//        [weakSelf.futureKLineData removeObjectAtIndex:0];
+//        [weakSelf.allKLineData removeObjectAtIndex:0];
+//        //k线图赋值最新数据
+//        weakSelf.chartView.visibleKLineData = weakSelf.allKLineData;
+//        //重新绘制k线图
+//        [weakSelf.chartView setNeedsDisplay];
+//        //把k线图移动到最右边
+//        dispatch_async(dispatch_get_main_queue(), ^{
+//            UIScrollView *scrollView = weakSelf.scrollView;
+//            if (!scrollView) return;
+//            CGFloat maxOffsetX = scrollView.contentSize.width - scrollView.bounds.size.width;
+//            if (maxOffsetX < 0) maxOffsetX = 0;
+//            [scrollView setContentOffset:CGPointMake(maxOffsetX, 0) animated:NO];
+//        });
+//
+//        //计算 RSI的模型数据
+//        [weakSelf calculateRSIWithPeriod:6];
+//        //计算BOLL的模型数据
+//        [weakSelf calculateBOLLWithPeriod:20];
+//        /*
+//         1.当RSI>80 且 k线的实体上穿布林线的蓝色线(bollUpper)时,等到出现k线下跌的第一根(开盘价大于收盘价),在K线的顶部标记橙色买入的字样
+//         2.当RSI<20 且 k线的实体下穿最底部布林线黑色(bollLower)时,等到出现k线上升的第一根(开盘价小于收盘价),在K线的顶部标记橙色买入的字样
+//         */
+//        [weakSelf detectRSI_BOLL_Signals];
+//    }];
+//    [self.myTimer start];
 
 }
+
+-(void)buildUI {
+    
+    CGFloat topDistance = SAFE_AREA_TOP_HEIGHT + viewHeight + 10 + volumeHeight + 10 + rsiHeight + 10;
+    
+    self.lumpsumLabel = [PaddingLabel new];
+    self.lumpsumLabel.textColor = [UIColor whiteColor];
+    self.lumpsumLabel.textInsets = UIEdgeInsetsMake(0, 8, 0, 8);
+    self.lumpsumLabel.addTo(self.view).str(@"总金额: 1.45倍").fnt(14).bgColor([UIColor colorWithHexString:@"9932CC"]).borderRadius(15).centerAlignment.makeCons(^{
+        make.left.equal.view(self.view).constants(10);
+        make.top.equal.view(self.view).constants(topDistance);
+        make.width.equal.constants(110);
+        make.height.equal.constants(30);
+    });
+    
+    self.allQuantityLabel = [PaddingLabel new];
+    self.allQuantityLabel.textColor = [UIColor whiteColor];
+    self.allQuantityLabel.textInsets = UIEdgeInsetsMake(0, 10, 0, 10);
+    self.allQuantityLabel.addTo(self.view).str(@"交易笔数: 999").fnt(14).bgColor([UIColor colorWithHexString:@"008B8B"]).borderRadius(15).centerAlignment.makeCons(^{
+        make.left.equal.view(self.lumpsumLabel).right.constants(10);
+        make.centerY.equal.view(self.lumpsumLabel);
+        make.width.equal.constants(115);
+        make.height.equal.constants(30);
+    });
+    
+    self.profitQuantityLabel = [PaddingLabel new];
+    self.profitQuantityLabel.textColor = [UIColor whiteColor];
+    self.profitQuantityLabel.textInsets = UIEdgeInsetsMake(0, 10, 0, 10);
+    self.profitQuantityLabel.addTo(self.view).str(@"盈利笔数: 60").fnt(14).bgColor([UIColor colorWithHexString:@"DAA520"]).borderRadius(15).centerAlignment.makeCons(^{
+        make.left.equal.view(self.allQuantityLabel).right.constants(10);
+        make.centerY.equal.view(self.lumpsumLabel);
+        make.width.equal.constants(115);
+        make.height.equal.constants(30);
+    });
+    
+    self.winningRateLabel = [PaddingLabel new];
+    self.winningRateLabel.textColor = [UIColor whiteColor];
+    self.winningRateLabel.textInsets = UIEdgeInsetsMake(0, 10, 0, 10);
+    self.winningRateLabel.addTo(self.view).str(@"胜率: 83%").fnt(14).bgColor([UIColor colorWithHexString:@"FF4500"]).borderRadius(15).centerAlignment.makeCons(^{
+        make.left.equal.view(self.view).constants(10);
+        make.top.equal.view(self.lumpsumLabel).bottom.constants(10);
+        make.width.equal.constants(110);
+        make.height.equal.constants(30);
+    });
+
+    self.tableView = [[UITableView alloc] init];
+    self.tableView.addTo(self.view);
+    self.tableView.delegate = self;
+    self.tableView.dataSource = self;
+    self.tableView.backgroundColor = [UIColor whiteColor];
+    self.tableView.showsVerticalScrollIndicator = NO;
+    self.tableView.showsHorizontalScrollIndicator = NO;
+    self.tableView.separatorStyle = UITableViewCellSeparatorStyleNone;
+    self.tableView.tag = 20251204;
+    self.tableView.rowHeight = 44;
+    [self.tableView registerClass:[TableViewCell class] forCellReuseIdentifier:@"TableViewCellID"];
+    //为解决tableview  Group的问题
+    self.tableView.tableHeaderView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 0, CGFLOAT_MIN)];
+    self.tableView.tableFooterView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 0, CGFLOAT_MIN)];
+    self.tableView.sectionHeaderHeight = CGFLOAT_MIN;
+    self.tableView.sectionFooterHeight = CGFLOAT_MIN;
+    //为解决ios11 后tableview刷新跳动的问题
+    self.tableView.estimatedRowHeight = 0;
+    self.tableView.estimatedSectionHeaderHeight = 0;
+    self.tableView.estimatedSectionFooterHeight = 0;
+    self.tableView.makeCons(^{
+        make.left.right.equal.view(self.view);
+        make.top.equal.view(self.winningRateLabel).bottom.constants(10);
+        make.bottom.equal.view(self.view).constants(-SAFE_AREA_BOTTOM);
+    });
+
+}
+
+#pragma  mark UITableViewDelegate 的代理方法
+//设置行数
+-(NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
+    return 10;
+}
+
+//cell的内容
+- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
+    TableViewCell *cell = [TableViewCell cellWithTableView:tableView];
+    return cell;
+}
+
 
 //计算 股票图的contentSize.width(可滑动的宽度)
 - (void)setupChartView:(CGFloat)chartHeight {
     CGFloat width = self.allKLineData.count * (8 + space);
-    KLineChartView *chartView = [[KLineChartView alloc] initWithFrame:CGRectMake(0, self.view.bounds.size.height - chartHeight - SAFE_AREA_BOTTOM, width, chartHeight)];
-    chartView.backgroundColor = [[UIColor grayColor] colorWithAlphaComponent:0.2];
+    KLineChartView *chartView = [[KLineChartView alloc] initWithFrame:CGRectMake(0, 0, width, chartHeight)];
+    chartView.backgroundColor = [UIColor whiteColor];
     chartView.visibleKLineData = self.allKLineData;
     //移除scrollView上面的所有子控件
     [self.scrollView.subviews makeObjectsPerformSelector:@selector(removeFromSuperview)];
@@ -949,7 +1096,70 @@ typedef void(^KLineScaleAction)(BOOL clickState);
     return NO; // 继续持仓
 }
 
+-(NSMutableArray<KLineModel *> *)creatDataWithTime:(NSString *)time withFuture:(BOOL)future {
+    NSMutableArray *initialList = [NSMutableArray array];
+    NSMutableArray *futureList = [NSMutableArray array];
+    NSArray *paths = [[NSBundle mainBundle] pathsForResourcesOfType:@"json" inDirectory:nil];
+    NSArray *sortedPaths = [paths sortedArrayUsingComparator:^NSComparisonResult(id  _Nonnull obj1, id  _Nonnull obj2) {
+        return [[obj1 lastPathComponent] localizedStandardCompare:[obj2 lastPathComponent]];
+    }];
 
+    NSMutableArray *frontArray = [NSMutableArray array];
+    NSMutableArray *laterArray = [NSMutableArray array];
+    BOOL frontTag = YES;
+    for (NSString *filePath in sortedPaths) {
+        if ([[filePath lastPathComponent] isEqualToString:time]) {
+            frontTag = NO;
+        }
+        if (frontTag) {
+            [frontArray addObject:filePath];
+        } else {
+            [laterArray addObject:filePath];
+        }
+    }
+    
+    
+    for (NSString *filePath in frontArray) {
+        NSData *data = [NSData dataWithContentsOfFile:filePath];
+        if (!data) continue;
+        NSError *error;
+        NSDictionary *json = [NSJSONSerialization JSONObjectWithData:data options:kNilOptions error:&error];
+        if (error) continue;
+        NSArray *klineList = json[@"data"][@"kline_list"];
+        for (NSDictionary *dict in klineList) {
+            KLineModel *model = [[KLineModel alloc] init];
+            model.open = [dict[@"open_price"] floatValue];
+            model.high = [dict[@"high_price"] floatValue];
+            model.low = [dict[@"low_price"] floatValue];
+            model.close = [dict[@"close_price"] floatValue];
+            model.timestamp = [dict[@"timestamp"] doubleValue];
+            model.volume = [dict[@"volume"] floatValue];
+            [initialList addObject:model];
+        }
+    }
+    
+    for (NSString *filePath in laterArray) {
+        NSData *data = [NSData dataWithContentsOfFile:filePath];
+        if (!data) continue;
+        NSError *error;
+        NSDictionary *json = [NSJSONSerialization JSONObjectWithData:data options:kNilOptions error:&error];
+        if (error) continue;
+        NSArray *klineList = json[@"data"][@"kline_list"];
+        for (NSDictionary *dict in klineList) {
+            KLineModel *model = [[KLineModel alloc] init];
+            model.open = [dict[@"open_price"] floatValue];
+            model.high = [dict[@"high_price"] floatValue];
+            model.low = [dict[@"low_price"] floatValue];
+            model.close = [dict[@"close_price"] floatValue];
+            model.timestamp = [dict[@"timestamp"] doubleValue];
+            model.volume = [dict[@"volume"] floatValue];
+            [futureList addObject:model];
+        }
+    }
+    
+    
+    return future ? futureList : initialList;
+}
 
 
 
@@ -1024,69 +1234,14 @@ typedef void(^KLineScaleAction)(BOOL clickState);
 
 // 左右滑动执行
 - (void)scrollViewDidScroll:(UIScrollView *)scrollView {
+    if (scrollView.tag == 20251204) { return; }
     self.chartView.contentOffsetX = scrollView.contentOffset.x;
-    
-//    CGFloat candleFullWidth = self.chartView.candleWidth + space;
-//    CGFloat maxOffsetX = self.loadedKLineData.count * candleFullWidth - SCREEN_WIDTH;
-//
-//    // 向右滑到底部-把之前左边就的数据删除（数组最多存900个模型）
-//    if (scrollView.contentOffset.x >= maxOffsetX - 50) {
-//        NSInteger nextStart = self.currentStartIndex + MaxVisibleKLineCount;
-//        if (nextStart < self.allKLineData.count) {
-//            NSInteger nextCount = MIN(MaxVisibleKLineCount, self.allKLineData.count - nextStart);
-//            NSArray *newData = [self loadDataFromIndex:nextStart count:nextCount];
-//
-//            [self.loadedKLineData addObjectsFromArray:newData];
-//            self.currentStartIndex = nextStart;
-//
-//            // 删除左边多余的数据
-//            if (self.loadedKLineData.count > MaxCacheKLineCount) {
-//                NSInteger toRemove = self.loadedKLineData.count - MaxCacheKLineCount;
-//                NSRange removeRange = NSMakeRange(0, toRemove);
-//                [self.loadedKLineData removeObjectsInRange:removeRange];
-//
-//                // 更新 scrollView.contentOffset 保持视觉不跳动
-//                scrollView.contentOffset = CGPointMake(scrollView.contentOffset.x - toRemove * candleFullWidth, 0);
-//            }
-//
-//            // 更新图表
-//            self.chartView.visibleKLineData = self.loadedKLineData;
-//            CGFloat newWidth = self.loadedKLineData.count * candleFullWidth;
-//            self.chartView.frame = CGRectMake(0, self.chartView.frame.origin.y, newWidth, self.chartView.frame.size.height);
-//            self.scrollView.contentSize = CGSizeMake(newWidth, self.scrollView.contentSize.height);
-//            [self.chartView setNeedsDisplay];
-//        }
-//    // 向左滑到底部-把之前右边就的数据删除（数组最多存900个模型）
-//    } else if (scrollView.contentOffset.x <= 50 && self.currentStartIndex > 0) {
-//        NSInteger prevCount = MaxVisibleKLineCount;
-//        NSInteger prevStart = MAX(self.currentStartIndex - prevCount, 0);
-//        NSArray *prevData = [self loadDataFromIndex:prevStart count:(self.currentStartIndex - prevStart)];
-//        
-//        if (prevData.count > 0) {
-//            [self.loadedKLineData insertObjects:prevData atIndexes:[NSIndexSet indexSetWithIndexesInRange:NSMakeRange(0, prevData.count)]];
-//            self.currentStartIndex = prevStart;
-//
-//            // 删除右边多余数据
-//            if (self.loadedKLineData.count > MaxCacheKLineCount) {
-//                NSInteger toRemove = self.loadedKLineData.count - MaxCacheKLineCount;
-//                NSRange removeRange = NSMakeRange(self.loadedKLineData.count - toRemove, toRemove);
-//                [self.loadedKLineData removeObjectsInRange:removeRange];
-//            }
-//
-//            // 更新图表
-//            self.chartView.visibleKLineData = self.loadedKLineData;
-//            CGFloat newWidth = self.loadedKLineData.count * candleFullWidth;
-//            self.chartView.frame = CGRectMake(0, self.chartView.frame.origin.y, newWidth, self.chartView.frame.size.height);
-//            self.scrollView.contentSize = CGSizeMake(newWidth, self.scrollView.contentSize.height);
-//
-//            // 向左插入后，调整 contentOffset 避免跳动
-//            scrollView.contentOffset = CGPointMake(scrollView.contentOffset.x + prevData.count * candleFullWidth, 0);
-//            
-//            [self.chartView setNeedsDisplay];
-//        }
-//    }
-
 }
 
 @end
+
+
+
+
+
 
