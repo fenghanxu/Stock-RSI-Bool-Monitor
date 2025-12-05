@@ -797,7 +797,9 @@ typedef void(^KLineScaleAction)(BOOL clickState);
     //盈利数量Label
     self.profitQuantityLabel.text = [NSString stringWithFormat:@"盈利笔数: %d",profitQuantity];
     //胜率Label
-    self.winningRateLabel.text = [NSString stringWithFormat:@"胜率: %.2lu%%",(unsigned long)(profitQuantity/arr.count*100)];
+    double profitQuantityD = profitQuantity;
+    double arrCountD = arr.count;
+    self.winningRateLabel.text = [NSString stringWithFormat:@"胜率: %.2f%%",(profitQuantityD/arrCountD*100.0)];
 }
 
 #pragma  mark -- UITableViewDelegate 的代理方法
