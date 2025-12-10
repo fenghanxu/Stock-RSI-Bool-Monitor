@@ -34,36 +34,6 @@
             endingLineNumber = "932"
             landmarkName = "-detectRSI_BOLL_Signals"
             landmarkType = "7">
-            <Locations>
-               <Location
-                  uuid = "0867BBE9-F8FB-422C-8959-2099C5EEE917 - 9fab508199771421"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "-[ViewController detectRSI_BOLL_Signals]"
-                  moduleName = "Frame.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/imac/Desktop/Stock-RSI-Bool-Monitor/Frame/ViewController.m"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "935"
-                  endingLineNumber = "935">
-               </Location>
-               <Location
-                  uuid = "0867BBE9-F8FB-422C-8959-2099C5EEE917 - 9fab50819977158e"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "-[ViewController detectRSI_BOLL_Signals]"
-                  moduleName = "Frame.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/imac/Desktop/Stock-RSI-Bool-Monitor/Frame/ViewController.m"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "932"
-                  endingLineNumber = "932">
-               </Location>
-            </Locations>
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -80,36 +50,6 @@
             endingLineNumber = "1042"
             landmarkName = "-evaluateProfitFromIndex:buyIndex:buyPrice:direction:"
             landmarkType = "7">
-            <Locations>
-               <Location
-                  uuid = "D00FFC80-2939-461A-B727-21199E940C30 - 1d01057ce1b254c0"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "-[ViewController evaluateProfitFromIndex:buyIndex:buyPrice:direction:]"
-                  moduleName = "Frame.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/imac/Desktop/Stock-RSI-Bool-Monitor/Frame/ViewController.m"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "1044"
-                  endingLineNumber = "1044">
-               </Location>
-               <Location
-                  uuid = "D00FFC80-2939-461A-B727-21199E940C30 - 1d01057ce1b2540e"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "-[ViewController evaluateProfitFromIndex:buyIndex:buyPrice:direction:]"
-                  moduleName = "Frame.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/imac/Desktop/Stock-RSI-Bool-Monitor/Frame/ViewController.m"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "1046"
-                  endingLineNumber = "1046">
-               </Location>
-            </Locations>
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -126,36 +66,6 @@
             endingLineNumber = "1090"
             landmarkName = "-evaluateProfitFromIndex:buyIndex:buyPrice:direction:"
             landmarkType = "7">
-            <Locations>
-               <Location
-                  uuid = "A2973624-D819-41B3-B5EE-552D7E0732A6 - 1d01057ce1b24e95"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "-[ViewController evaluateProfitFromIndex:buyIndex:buyPrice:direction:]"
-                  moduleName = "Frame.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/imac/Desktop/Stock-RSI-Bool-Monitor/Frame/ViewController.m"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "1089"
-                  endingLineNumber = "1089">
-               </Location>
-               <Location
-                  uuid = "A2973624-D819-41B3-B5EE-552D7E0732A6 - 1d01057ce1b24e7e"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "-[ViewController evaluateProfitFromIndex:buyIndex:buyPrice:direction:]"
-                  moduleName = "Frame.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/imac/Desktop/Stock-RSI-Bool-Monitor/Frame/ViewController.m"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "1094"
-                  endingLineNumber = "1094">
-               </Location>
-            </Locations>
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -172,36 +82,6 @@
             endingLineNumber = "1134"
             landmarkName = "-evaluateProfitFromIndex:buyIndex:buyPrice:direction:"
             landmarkType = "7">
-            <Locations>
-               <Location
-                  uuid = "815F33BB-203F-43B4-B039-273EC05DDD25 - 1d01057ce1b2499c"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "-[ViewController evaluateProfitFromIndex:buyIndex:buyPrice:direction:]"
-                  moduleName = "Frame.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/imac/Desktop/Stock-RSI-Bool-Monitor/Frame/ViewController.m"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "1128"
-                  endingLineNumber = "1128">
-               </Location>
-               <Location
-                  uuid = "815F33BB-203F-43B4-B039-273EC05DDD25 - 1d01057ce1b24822"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "-[ViewController evaluateProfitFromIndex:buyIndex:buyPrice:direction:]"
-                  moduleName = "Frame.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/imac/Desktop/Stock-RSI-Bool-Monitor/Frame/ViewController.m"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "1138"
-                  endingLineNumber = "1138">
-               </Location>
-            </Locations>
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -218,36 +98,6 @@
             endingLineNumber = "1180"
             landmarkName = "-evaluateProfitFromIndex:buyIndex:buyPrice:direction:"
             landmarkType = "7">
-            <Locations>
-               <Location
-                  uuid = "434B581A-E0D4-4F82-A7FF-53DCEF85BE3C - 6b620a898beb23c7"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "-[ViewController creatDataWithTime:withFuture:]"
-                  moduleName = "Frame.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/imac/Desktop/Stock-RSI-Bool-Monitor/Frame/ViewController.m"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "1172"
-                  endingLineNumber = "1172">
-               </Location>
-               <Location
-                  uuid = "434B581A-E0D4-4F82-A7FF-53DCEF85BE3C - 1d01057ce1b242d4"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "-[ViewController evaluateProfitFromIndex:buyIndex:buyPrice:direction:]"
-                  moduleName = "Frame.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/imac/Desktop/Stock-RSI-Bool-Monitor/Frame/ViewController.m"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "1184"
-                  endingLineNumber = "1184">
-               </Location>
-            </Locations>
          </BreakpointContent>
       </BreakpointProxy>
    </Breakpoints>
