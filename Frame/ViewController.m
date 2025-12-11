@@ -12,11 +12,11 @@
 #define volumeHeight 80  // 成交量图形高度
 #define rsiHeight 60 // RSI 指标高度
 
-#define TP_Parameter 0.059//止盈
-#define SL_Parameter 0.017//止损
+#define TP_Parameter 0.059//止盈  5.9%
+#define SL_Parameter 0.017//止损。1.7%
 
-#define fileName @"2023-01-06--2023-01-07.json"
-#define timestampDefine 1672999200
+#define fileTimestamp 1672646400 //开始模拟购买的k线。  2023-01-02 16:00:00
+
 
 //k线模型
 @interface KLineModel : NSObject
@@ -610,10 +610,8 @@ typedef void(^KLineScaleAction)(BOOL clickState);
     self.waitForDrop         = NO;// 等上涨确认 → 买升
     self.waitForRise         = NO;// 等下跌确认 → 买跌
 
-
-    self.futureKLineData     = [self creatDataWithTime:fileName withFuture:YES];
-    self.allKLineData        = [self creatDataWithTime:fileName withFuture:NO];
-    
+    //获取显示的数据 + 未来的数据
+    [self buildDataWithTimestamp:fileTimestamp];
     CGFloat chartViewHeight  = viewHeight + 10 + volumeHeight + 10 + rsiHeight;
     CGRect scrollerRect      = CGRectMake(0, SAFE_AREA_TOP_HEIGHT, SCREEN_WIDTH, chartViewHeight);
     self.scrollView          = [[UIScrollView alloc] initWithFrame:scrollerRect];
@@ -920,6 +918,7 @@ typedef void(^KLineScaleAction)(BOOL clickState);
 
             self.waitForRise = YES;
             self.waitForDrop = NO;
+            return;
         }
 
         // ----------- RSI > 80 上穿上轨 → 下一根跌 K 才买跌 -----------
@@ -930,6 +929,7 @@ typedef void(^KLineScaleAction)(BOOL clickState);
 
             self.waitForDrop = YES;
             self.waitForRise = NO;
+            return;
         }
     }
     
@@ -967,6 +967,7 @@ typedef void(^KLineScaleAction)(BOOL clickState);
                                           atScrollPosition:UITableViewScrollPositionBottom
                                                   animated:YES];
                 }
+                return;
             }
         }
 
@@ -996,7 +997,7 @@ typedef void(^KLineScaleAction)(BOOL clickState);
                                           atScrollPosition:UITableViewScrollPositionBottom
                                                   animated:YES];
                 }
-
+                return;
             }
         }
     }
@@ -1015,13 +1016,11 @@ typedef void(^KLineScaleAction)(BOOL clickState);
             self.direction           = @"";// 买升买跌标记
             self.waitForDrop         = NO;// 等上涨确认 → 买升
             self.waitForRise         = NO;// 等下跌确认 → 买跌
+            return;
         }
     }
       
 }
-
-
-
 
 // ============================================================
 // 根据买点向后判断是否 赚 / 亏
@@ -1175,30 +1174,14 @@ typedef void(^KLineScaleAction)(BOOL clickState);
     return NO; // 继续持仓
 }
 
--(NSMutableArray<KLineModel *> *)creatDataWithTime:(NSString *)time withFuture:(BOOL)future {
-    NSMutableArray *initialList = [NSMutableArray array];
-    NSMutableArray *futureList = [NSMutableArray array];
+-(void)buildDataWithTimestamp:(double)timestamp {
+
     NSArray *paths = [[NSBundle mainBundle] pathsForResourcesOfType:@"json" inDirectory:nil];
     NSArray *sortedPaths = [paths sortedArrayUsingComparator:^NSComparisonResult(id  _Nonnull obj1, id  _Nonnull obj2) {
         return [[obj1 lastPathComponent] localizedStandardCompare:[obj2 lastPathComponent]];
     }];
-
-    NSMutableArray *frontArray = [NSMutableArray array];
-    NSMutableArray *laterArray = [NSMutableArray array];
-    BOOL frontTag = YES;
+    
     for (NSString *filePath in sortedPaths) {
-        if ([[filePath lastPathComponent] isEqualToString:time]) {
-            frontTag = NO;
-        }
-        if (frontTag) {
-            [frontArray addObject:filePath];
-        } else {
-            [laterArray addObject:filePath];
-        }
-    }
-    
-    
-    for (NSString *filePath in frontArray) {
         NSData *data = [NSData dataWithContentsOfFile:filePath];
         if (!data) continue;
         NSError *error;
@@ -1206,37 +1189,28 @@ typedef void(^KLineScaleAction)(BOOL clickState);
         if (error) continue;
         NSArray *klineList = json[@"data"][@"kline_list"];
         for (NSDictionary *dict in klineList) {
-            KLineModel *model = [[KLineModel alloc] init];
-            model.open = [dict[@"open_price"] floatValue];
-            model.high = [dict[@"high_price"] floatValue];
-            model.low = [dict[@"low_price"] floatValue];
-            model.close = [dict[@"close_price"] floatValue];
-            model.timestamp = [dict[@"timestamp"] doubleValue];
-            model.volume = [dict[@"volume"] floatValue];
-            [initialList addObject:model];
+            if ([dict[@"timestamp"] doubleValue] >= timestamp) {
+                KLineModel *model = [[KLineModel alloc] init];
+                model.open = [dict[@"open_price"] floatValue];
+                model.high = [dict[@"high_price"] floatValue];
+                model.low = [dict[@"low_price"] floatValue];
+                model.close = [dict[@"close_price"] floatValue];
+                model.timestamp = [dict[@"timestamp"] doubleValue];
+                model.volume = [dict[@"volume"] floatValue];
+                [self.futureKLineData addObject:model];//未来的k线数据
+            } else {
+                KLineModel *model = [[KLineModel alloc] init];
+                model.open = [dict[@"open_price"] floatValue];
+                model.high = [dict[@"high_price"] floatValue];
+                model.low = [dict[@"low_price"] floatValue];
+                model.close = [dict[@"close_price"] floatValue];
+                model.timestamp = [dict[@"timestamp"] doubleValue];
+                model.volume = [dict[@"volume"] floatValue];
+                [self.allKLineData addObject:model];//显示的k线数据
+            }
         }
     }
     
-    for (NSString *filePath in laterArray) {
-        NSData *data = [NSData dataWithContentsOfFile:filePath];
-        if (!data) continue;
-        NSError *error;
-        NSDictionary *json = [NSJSONSerialization JSONObjectWithData:data options:kNilOptions error:&error];
-        if (error) continue;
-        NSArray *klineList = json[@"data"][@"kline_list"];
-        for (NSDictionary *dict in klineList) {
-            KLineModel *model = [[KLineModel alloc] init];
-            model.open = [dict[@"open_price"] floatValue];
-            model.high = [dict[@"high_price"] floatValue];
-            model.low = [dict[@"low_price"] floatValue];
-            model.close = [dict[@"close_price"] floatValue];
-            model.timestamp = [dict[@"timestamp"] doubleValue];
-            model.volume = [dict[@"volume"] floatValue];
-            [futureList addObject:model];
-        }
-    }
-
-    return future ? futureList : initialList;
 }
 
 // 左右滑动执行
