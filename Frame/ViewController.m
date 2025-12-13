@@ -12,8 +12,11 @@
 #define volumeHeight 80  // 成交量图形高度
 #define rsiHeight 60 // RSI 指标高度
 
-#define TP_Parameter 0.059//止盈
-#define SL_Parameter 0.017//止损
+#define TP_Parameter 0.059//止盈  5.9%
+#define SL_Parameter 0.017//止损。1.7%
+
+#define fileTimestamp 1672646400 //开始模拟购买的k线。  2023-01-02 16:00:00
+
 
 //k线模型
 @interface KLineModel : NSObject
@@ -163,7 +166,7 @@ typedef void(^KLineScaleAction)(BOOL clickState);
 
     // 你想要分几段
     int horizontalLines = 6;   // 横向（价格方向）虚线数量
-    int verticalLines = 160;     // 纵向（时间方向）虚线数量
+    int verticalLines = 30;     // 纵向（时间方向）虚线数量
 
     // 虚线样式：线长=空隙长
     CGFloat dashPattern[] = {6, 6};
@@ -578,14 +581,16 @@ typedef void(^KLineScaleAction)(BOOL clickState);
 @property (nonatomic, strong) NSMutableArray<KLineModel *> *allKLineData;//显示的k线数据
 @property (nonatomic, strong) NSMutableArray<KLineModel *> *futureKLineData;//未来的k线数据
 
-@property (nonatomic, assign) NSInteger winCount;    //赢的次数
-@property (nonatomic, assign) NSInteger lowerCount;  //输的次数
-@property (nonatomic, assign) double finalBalance;   // 最终资金
-@property (nonatomic, assign) NSInteger tradeCount;  // 总交易数
-@property (nonatomic, assign) NSInteger winTrades;   // 获利交易数
-@property (nonatomic, strong) NSMutableArray<NSNumber *> *lossStreaks;  // 连败统计数组 1~12
-@property (nonatomic, strong) NSMutableArray<NSNumber *> *returnsArray; // 累计每一盘的盈亏
-@property (nonatomic, assign) NSInteger currentLossStreak; // 当前连败数
+// 是否以持仓
+@property (nonatomic, assign) BOOL inPosition;
+// 购买的模型
+@property (nonatomic, strong) KLineModel *buyModel;
+// 买升买跌标记
+@property (nonatomic,   copy) NSString *direction;
+// 等上涨确认 → 买升
+@property (nonatomic, assign) BOOL waitForRise;
+// 等下跌确认 → 买跌
+@property (nonatomic, assign) BOOL waitForDrop;
 
 @end
 
@@ -596,43 +601,26 @@ typedef void(^KLineScaleAction)(BOOL clickState);
     self.view.backgroundColor = UIColor.whiteColor;
     [self buildUI];
 
-    self.tableViewList     = [NSMutableArray<BusinessModel *> new];
-    self.allKLineData      = [NSMutableArray<KLineModel *> new];
-    self.futureKLineData   = [NSMutableArray<KLineModel *> new];
-    self.finalBalance      = 1.0;
-    self.tradeCount        = 0;
-    self.winTrades         = 0;
-    self.currentLossStreak = 0;
-    self.returnsArray      = [NSMutableArray<NSNumber *> new];
-    self.lossStreaks       = [NSMutableArray<NSNumber *> new];
-    for (int i = 0; i < 12; i++) {
-        [self.lossStreaks addObject:@0];
-    }
+    self.tableViewList       = [NSMutableArray<BusinessModel *> new];
+    self.allKLineData        = [NSMutableArray<KLineModel *> new];
+    self.futureKLineData     = [NSMutableArray<KLineModel *> new];
+    self.inPosition          = NO;// 是否以持仓
+    self.buyModel            = [KLineModel new];// 购买的模型标记
+    self.direction           = @"";// 买升买跌标记
+    self.waitForDrop         = NO;// 等上涨确认 → 买升
+    self.waitForRise         = NO;// 等下跌确认 → 买跌
 
-    self.futureKLineData     = [self creatDataWithTime:@"2025-02-09--2025-02-10.json" withFuture:YES];
-    self.allKLineData        = [self creatDataWithTime:@"2025-02-09--2025-02-10.json" withFuture:NO];
-    
+    //获取显示的数据 + 未来的数据
+    [self buildDataWithTimestamp:fileTimestamp];
     CGFloat chartViewHeight  = viewHeight + 10 + volumeHeight + 10 + rsiHeight;
-    CGRect scrollerRect = CGRectMake(0, SAFE_AREA_TOP_HEIGHT, SCREEN_WIDTH, chartViewHeight);
+    CGRect scrollerRect      = CGRectMake(0, SAFE_AREA_TOP_HEIGHT, SCREEN_WIDTH, chartViewHeight);
     self.scrollView          = [[UIScrollView alloc] initWithFrame:scrollerRect];
     self.scrollView.delegate = self;
     [self.view addSubview:self.scrollView];
 
     //计算 股票图的contentSize.width(可滑动的宽度)
     [self setupChartView:chartViewHeight];
-    //计算 RSI的模型数据
-    [self calculateRSIWithPeriod:6];
-    //计算BOLL的模型数据
-    [self calculateBOLLWithPeriod:20];
-    /*
-     1.当RSI>80 且 k线的实体上穿布林线的蓝色线(bollUpper)时,等到出现k线下跌的第一根(开盘价大于收盘价),在K线的顶部标记橙色买入的字样
-     2.当RSI<20 且 k线的实体下穿最底部布林线黑色(bollLower)时,等到出现k线上升的第一根(开盘价小于收盘价),在K线的顶部标记橙色买入的字样
-     */
-    [self detectRSI_BOLL_Signals];
-    //打印结果
-    //[self printBacktestSummary];
 
-    
     __weak typeof(self) weakSelf = self;
     self.myTimer = [MyTimer scheduledTimerWithBlock:^{
         if (weakSelf.futureKLineData.count <= 0) {
@@ -663,7 +651,7 @@ typedef void(^KLineScaleAction)(BOOL clickState);
          1.当RSI>80 且 k线的实体上穿布林线的蓝色线(bollUpper)时,等到出现k线下跌的第一根(开盘价大于收盘价),在K线的顶部标记橙色买入的字样
          2.当RSI<20 且 k线的实体下穿最底部布林线黑色(bollLower)时,等到出现k线上升的第一根(开盘价小于收盘价),在K线的顶部标记橙色买入的字样
          */
-        [weakSelf detectRSI_BOLL_Signals];
+        [weakSelf calculateProcess];
     }];
     [self.myTimer start];
 
@@ -772,12 +760,12 @@ typedef void(^KLineScaleAction)(BOOL clickState);
 -(void)dataSummary {
     NSMutableArray<BusinessModel *> *arr = [NSMutableArray<BusinessModel *> new];
     for (BusinessModel *model in self.tableViewList) {
-        if ([model.buySel isEqualToString:@"卖出"]) {
+        if ([model.buySel isEqualToString:@"卖"]) {
             [arr addObject:model];
         }
     }
     
-    int profitQuantity = 0;
+    int profitQuantity = 0;//盈利数量
     double lumpSum = 1.0;
     for (BusinessModel *model in arr) {
         //总金额Label
@@ -914,162 +902,135 @@ typedef void(^KLineScaleAction)(BOOL clickState);
  止损固定：−1%       即:0.99(跌0.01)
  
  */
-- (void)detectRSI_BOLL_Signals {
-
-    BOOL inPosition = NO;
-    NSInteger buyIndex = -1;
-    CGFloat buyPrice = 0;
-    NSString *direction = @"";
+-(void)calculateProcess {
+    KLineModel *m = self.allKLineData.lastObject;
     
-    BOOL waitForRise = NO;    // 等上涨确认 → 买升
-    BOOL waitForDrop = NO;    // 等下跌确认 → 买跌
+    // ==============================================================
+    // ③ 无仓位，也没有等待确认 → 检测信号本体
+    // ==============================================================
 
-    self.winCount = 0;
-    self.lowerCount = 0;
+    if (!self.waitForRise && !self.waitForRise && !self.inPosition && [self.direction isEqualToString:@""]) {
+        // ----------- RSI < 20 下穿下轨 → 下一根涨 K 才买升 -----------
+        if (m.rsi < 20 &&
+            m.close < m.open &&
+            m.close < m.bollLower &&
+            m.bollLower > 0.0) {
 
-    for (NSInteger i = 1; i < self.allKLineData.count; i++) {
+            self.waitForRise = YES;
+            self.waitForDrop = NO;
+            return;
+        }
 
-        KLineModel *m = self.allKLineData[i];
+        // ----------- RSI > 80 上穿上轨 → 下一根跌 K 才买跌 -----------
+        if (m.rsi > 80 &&
+            m.close > m.open &&
+            m.close > m.bollUpper &&
+            m.bollUpper > 0.0) {
 
-        if (m.timestamp >= 1739095200) {
-            
-            // ==============================================================
-            // ① 已持仓 → 检查卖出是否满足 TP / SL
-            // ==============================================================
-            if (inPosition) {
+            self.waitForDrop = YES;
+            self.waitForRise = NO;
+            return;
+        }
+    }
+    
+    
+    
+    
+    // ==============================================================
+    // ② 当前没有持仓 → 等待确认 K 线开仓
+    // ==============================================================
 
-                BOOL closed = [self evaluateProfitFromIndex:i
-                                                   buyIndex:buyIndex
-                                                  buyPrice:buyPrice
-                                                  direction:direction];
+    if (!self.inPosition && [self.direction isEqualToString:@""] && self.buyModel.signalTag == nil) {
+        // ---- 等涨确认 → 买升（多单）----
+        if (self.waitForRise) {
 
-                if (closed) {
-                    inPosition = NO;
-                    buyIndex = -1;
-                    buyPrice = 0;
+            if (m.close > m.open) {   // 必须是涨 K 才开仓（与 Python 一致）
+                self.inPosition = YES;
+                self.direction = @"long";
+                m.signalTag = @"买升";
+                self.buyModel = m;
+
+                //下面的代码全是跟tableview的数据有关
+                //买入价格
+                NSString *buySellPriceString = [NSString stringWithFormat:@"%.2f",m.close];
+                //买入时间
+                NSDate *buy_date = [NSDate dateWithTimeIntervalSince1970:m.timestamp];
+                NSDateFormatter *buy_formatter = [[NSDateFormatter alloc] init];
+                buy_formatter.dateFormat = @"yyyy-MM-dd HH";
+                NSString *buy_dateStr = [buy_formatter stringFromDate:buy_date];
+                BusinessModel *model = [[BusinessModel alloc] initWithBuySel:@"买" buySelTime:buy_dateStr buySellPrice:buySellPriceString longShort:@"做多" profitLoss:0.0];
+                self.tableViewList = [[self addBusinessModelWithoutDuplication:model] mutableCopy];
+                [self.tableView reloadData];
+                if (self.tableViewList.count > 0) {
+                    NSIndexPath *lastIndexPath = [NSIndexPath indexPathForRow:self.tableViewList.count - 1 inSection:0];
+                    [self.tableView scrollToRowAtIndexPath:lastIndexPath
+                                          atScrollPosition:UITableViewScrollPositionBottom
+                                                  animated:YES];
                 }
-
-                continue;
-            }
-
-            // ==============================================================
-            // ② 当前没有持仓 → 等待确认 K 线开仓
-            // ==============================================================
-
-            // ---- 等涨确认 → 买升（多单）----
-            if (waitForRise) {
-
-                if (m.close > m.open) {   // 必须是涨 K 才开仓（与 Python 一致）
-
-                    direction = @"long";
-                    buyIndex = i;
-                    buyPrice = m.close;    // 符合条件收盘价开仓
-
-                    m.signalTag = @"买升";
-                    inPosition = YES;
-
-                    waitForRise = NO;
-                    waitForDrop = NO;
-
-                    //买入价格
-                    NSString *buySellPriceString = [NSString stringWithFormat:@"%.2f",m.close];
-                    //买入时间
-                    NSDate *buy_date = [NSDate dateWithTimeIntervalSince1970:m.timestamp];
-                    NSDateFormatter *buy_formatter = [[NSDateFormatter alloc] init];
-                    buy_formatter.dateFormat = @"yyyy-MM-dd HH";
-                    NSString *buy_dateStr = [buy_formatter stringFromDate:buy_date];
-                    BusinessModel *model = [[BusinessModel alloc] initWithBuySel:@"买入" buySelTime:buy_dateStr buySellPrice:buySellPriceString longShort:@"做多" profitLoss:0.0];
-                    self.tableViewList = [[self addBusinessModelWithoutDuplication:model] mutableCopy];
-                    [self.tableView reloadData];
-                    if (self.tableViewList.count > 0) {
-                        NSIndexPath *lastIndexPath = [NSIndexPath indexPathForRow:self.tableViewList.count - 1 inSection:0];
-                        [self.tableView scrollToRowAtIndexPath:lastIndexPath
-                                              atScrollPosition:UITableViewScrollPositionBottom
-                                                      animated:YES];
-                    }
-                    continue;
-                }
-            }
-
-            // ---- 等跌确认 → 买跌（空单）----
-            if (waitForDrop) {
-
-                if (m.open > m.close) {   // 必须是跌 K 才开仓（与 Python 一致）
-
-                    direction = @"short";
-                    buyIndex = i;
-                    buyPrice = m.close; // 符合条件收盘价开仓
-
-                    m.signalTag = @"买跌";
-                    inPosition = YES;
-
-                    waitForDrop = NO;
-                    waitForRise = NO;
-
-                    //买入价格
-                    NSString *buySellPriceString = [NSString stringWithFormat:@"%.2f",m.close];
-                    //买入时间
-                    NSDate *buy_date = [NSDate dateWithTimeIntervalSince1970:m.timestamp];
-                    NSDateFormatter *buy_formatter = [[NSDateFormatter alloc] init];
-                    buy_formatter.dateFormat = @"yyyy-MM-dd HH";
-                    NSString *buy_dateStr = [buy_formatter stringFromDate:buy_date];
-                    BusinessModel *model = [[BusinessModel alloc] initWithBuySel:@"买入" buySelTime:buy_dateStr buySellPrice:buySellPriceString longShort:@"做空" profitLoss:0.0];
-                    self.tableViewList = [[self addBusinessModelWithoutDuplication:model] mutableCopy];
-                    [self.tableView reloadData];
-                    if (self.tableViewList.count > 0) {
-                        NSIndexPath *lastIndexPath = [NSIndexPath indexPathForRow:self.tableViewList.count - 1 inSection:0];
-                        [self.tableView scrollToRowAtIndexPath:lastIndexPath
-                                              atScrollPosition:UITableViewScrollPositionBottom
-                                                      animated:YES];
-                    }
-                    continue;
-                }
-            }
-
-            // ==============================================================
-            // ③ 无仓位，也没有等待确认 → 检测信号本体
-            // ==============================================================
-
-            // ----------- RSI < 20 下穿下轨 → 下一根涨 K 才买升 -----------
-            if (m.rsi < 20 &&
-                m.close < m.open &&
-                m.close < m.bollLower &&
-                m.bollLower > 0.0) {
-
-                waitForRise = YES;
-                waitForDrop = NO;
-                continue;
-            }
-
-            // ----------- RSI > 80 上穿上轨 → 下一根跌 K 才买跌 -----------
-            if (m.rsi > 80 &&
-                m.close > m.open &&
-                m.close > m.bollUpper &&
-                m.bollUpper > 0.0) {
-
-                waitForDrop = YES;
-                waitForRise = NO;
-                continue;
+                return;
             }
         }
 
+        // ---- 等跌确认 → 买跌（空单）----
+        if (self.waitForDrop) {
+
+            if (m.open > m.close) {   // 必须是跌 K 才开仓（与 Python 一致）
+                self.inPosition = YES;
+                self.direction = @"short";
+                m.signalTag = @"买跌";
+                self.buyModel = m;
+
+                //下面的代码全是跟tableview的数据有关
+                //买入价格
+                NSString *buySellPriceString = [NSString stringWithFormat:@"%.2f",m.close];
+                //买入时间
+                NSDate *buy_date = [NSDate dateWithTimeIntervalSince1970:m.timestamp];
+                NSDateFormatter *buy_formatter = [[NSDateFormatter alloc] init];
+                buy_formatter.dateFormat = @"yyyy-MM-dd HH";
+                NSString *buy_dateStr = [buy_formatter stringFromDate:buy_date];
+                BusinessModel *model = [[BusinessModel alloc] initWithBuySel:@"买" buySelTime:buy_dateStr buySellPrice:buySellPriceString longShort:@"做空" profitLoss:0.0];
+                self.tableViewList = [[self addBusinessModelWithoutDuplication:model] mutableCopy];
+                [self.tableView reloadData];
+                if (self.tableViewList.count > 0) {
+                    NSIndexPath *lastIndexPath = [NSIndexPath indexPathForRow:self.tableViewList.count - 1 inSection:0];
+                    [self.tableView scrollToRowAtIndexPath:lastIndexPath
+                                          atScrollPosition:UITableViewScrollPositionBottom
+                                                  animated:YES];
+                }
+                return;
+            }
+        }
     }
+    
 
+    // ==============================================================
+    // ① 已持仓 → 检查卖出是否满足 TP / SL
+    // ==============================================================
+    
+    if (self.inPosition && ![self.direction isEqualToString:@""] && self.buyModel.signalTag != nil) {
+        BOOL closed = [self evaluateProfitFromSellModel:m fromBuyModel:self.buyModel fromDirection:self.direction];
+
+        if (closed) {
+            self.inPosition          = NO;// 是否以持仓
+            self.buyModel            = [KLineModel new];// 购买的模型标记
+            self.direction           = @"";// 买升买跌标记
+            self.waitForDrop         = NO;// 等上涨确认 → 买升
+            self.waitForRise         = NO;// 等下跌确认 → 买跌
+            return;
+        }
+    }
+      
 }
-
-
 
 // ============================================================
 // 根据买点向后判断是否 赚 / 亏
 // direction = @"down" 表示买跌
 // direction = @"up"   表示买升
 // ============================================================
-- (BOOL)evaluateProfitFromIndex:(NSInteger)i
-                       buyIndex:(NSInteger)buyIndex
-                       buyPrice:(CGFloat)buyPrice
-                      direction:(NSString *)direction {
+- (BOOL)evaluateProfitFromSellModel:(KLineModel *)sellModel
+                      fromBuyModel:(KLineModel *)buyModel
+                      fromDirection:(NSString *)direction {
 
-    if (buyIndex < 0) return NO;
 
     // ===== 止盈止损百分比 =====
     CGFloat tpPct = TP_Parameter;    // 止盈
@@ -1083,17 +1044,15 @@ typedef void(^KLineScaleAction)(BOOL clickState);
     if ([direction isEqualToString:@"long"]) {
 
         // 做多
-        TP = buyPrice * (1 + tpPct);   // 上涨止盈
-        SL = buyPrice * (1 - slPct);   // 下跌止损
+        TP = buyModel.close * (1 + tpPct);   // 上涨止盈
+        SL = buyModel.close * (1 - slPct);   // 下跌止损
 
     } else {
 
         // 做空
-        TP = buyPrice * (1 - tpPct);   // 下跌止盈
-        SL = buyPrice * (1 + slPct);   // 上涨止损
+        TP = buyModel.close * (1 - tpPct);   // 下跌止盈
+        SL = buyModel.close * (1 + slPct);   // 上涨止损
     }
-
-    KLineModel *cur = self.allKLineData[i];
 
     // =====================
     //       做多逻辑
@@ -1101,25 +1060,20 @@ typedef void(^KLineScaleAction)(BOOL clickState);
     if ([direction isEqualToString:@"long"]) {
 
         // --- 止盈（价格 >= TP）---
-        if (cur.high >= TP) {
-            self.winCount++;
-            self.allKLineData[i].signalTag = @"赚";
-            
-//            NSDate *buy_date = [NSDate dateWithTimeIntervalSince1970:self.allKLineData[buyIndex].timestamp];
-//            NSDateFormatter *buy_formatter = [[NSDateFormatter alloc] init];
-//            buy_formatter.dateFormat = @"yyyy-MM-dd HH";
-//            NSString *buy_dateStr = [buy_formatter stringFromDate:buy_date];
+        if (sellModel.high >= TP) {
+            sellModel.signalTag = @"赚";
+
             //卖出时间
-            NSDate *sall_date = [NSDate dateWithTimeIntervalSince1970:self.allKLineData[i].timestamp];
+            NSDate *sall_date = [NSDate dateWithTimeIntervalSince1970:sellModel.timestamp];
             NSDateFormatter *sall_formatter = [[NSDateFormatter alloc] init];
             sall_formatter.dateFormat = @"yyyy-MM-dd HH";
             NSString *sall_dateStr = [sall_formatter stringFromDate:sall_date];
                     
             //卖出价格
-            NSString *buySellPriceString = [NSString stringWithFormat:@"%.2f",self.allKLineData[buyIndex].high];
+            NSString *sellPrice = [NSString stringWithFormat:@"%.2f",TP];
 
-            BusinessModel *model = [[BusinessModel alloc] initWithBuySel:@"卖出" buySelTime:sall_dateStr buySellPrice:buySellPriceString longShort:@"盈利" profitLoss:(TP-buyPrice)/buyPrice*100];
-            self.tableViewList = [[self addBusinessModelWithoutDuplication:model] mutableCopy];
+            BusinessModel *model = [[BusinessModel alloc] initWithBuySel:@"卖" buySelTime:sall_dateStr buySellPrice:sellPrice longShort:@"盈利" profitLoss:(TP-buyModel.close)/buyModel.close*100];
+            self.tableViewList = [[self addBusinessModelWithoutDuplication:model] mutableCopy];//去重,模型添加数组
             [self dataSummary];
             [self.tableView reloadData];
             if (self.tableViewList.count > 0) {
@@ -1128,55 +1082,24 @@ typedef void(^KLineScaleAction)(BOOL clickState);
                                       atScrollPosition:UITableViewScrollPositionBottom
                                               animated:YES];
             }
-            //NSLog(@"WIN 多单 | 买入时间: %@ | 卖出时间: %@ | 买: %.2f | 卖: %.2f | 盈利 %.2f%%", buy_dateStr, sall_dateStr, buyPrice, TP, (TP-buyPrice)/buyPrice*100);
-            
-            // ======== 统计部分开始 ========
-            // 总交易笔数
-            self.tradeCount += 1;
-            // 盈利笔数
-            self.winTrades += 1;
-
-            // 清零当前连败并记录到 streak 数组
-            if (self.currentLossStreak > 0) {
-                NSInteger idx = MIN(self.currentLossStreak - 1, 11);
-                NSInteger old = self.lossStreaks[idx].integerValue;
-                self.lossStreaks[idx] = @(old + 1);
-                self.currentLossStreak = 0;
-            }
-            
-            double pct = (TP - buyPrice) / buyPrice * 100.0;//单笔收益率(%) 赢一次固定 8%
-            // === 复利计算（和 Python 完全一致）===
-            double multiplier = 1.0 + pct / 100.0; //总金额的 1.08
-            self.finalBalance *= multiplier;//总金额 * 1.08
-            
-            // 添加到数组（用于计算平均回报）
-            [self.returnsArray addObject:@(pct)];
-            // ======== 统计部分结束 ========
-
 
             return YES;
         }
 
         // --- 止损（价格 <= SL）---
-        if (cur.low <= SL) {
-            self.lowerCount++;
-            self.allKLineData[i].signalTag = @"亏";
-            
-//            NSDate *buy_date = [NSDate dateWithTimeIntervalSince1970:self.allKLineData[buyIndex].timestamp];
-//            NSDateFormatter *buy_formatter = [[NSDateFormatter alloc] init];
-//            buy_formatter.dateFormat = @"yyyy-MM-dd HH";
-//            NSString *buy_dateStr = [buy_formatter stringFromDate:buy_date];
-            
-            NSDate *sall_date = [NSDate dateWithTimeIntervalSince1970:self.allKLineData[i].timestamp];
+        if (sellModel.low <= SL) {
+            sellModel.signalTag = @"亏";
+
+            NSDate *sall_date = [NSDate dateWithTimeIntervalSince1970:sellModel.timestamp];
             NSDateFormatter *sall_formatter = [[NSDateFormatter alloc] init];
             sall_formatter.dateFormat = @"yyyy-MM-dd HH";
             NSString *sall_dateStr = [sall_formatter stringFromDate:sall_date];
             
             //卖出价格
-            NSString *buySellPriceString = [NSString stringWithFormat:@"%.2f",self.allKLineData[buyIndex].low];
+            NSString *sellPrice = [NSString stringWithFormat:@"%.2f",SL];
 
-            BusinessModel *model = [[BusinessModel alloc] initWithBuySel:@"卖出" buySelTime:sall_dateStr buySellPrice:buySellPriceString longShort:@"亏损" profitLoss:(SL-buyPrice)/buyPrice*100];
-            self.tableViewList = [[self addBusinessModelWithoutDuplication:model] mutableCopy];
+            BusinessModel *model = [[BusinessModel alloc] initWithBuySel:@"卖" buySelTime:sall_dateStr buySellPrice:sellPrice longShort:@"亏损" profitLoss:(SL-buyModel.close)/buyModel.close*100];
+            self.tableViewList = [[self addBusinessModelWithoutDuplication:model] mutableCopy];//去重,模型添加数组
             [self dataSummary];
             [self.tableView reloadData];
             if (self.tableViewList.count > 0) {
@@ -1185,21 +1108,6 @@ typedef void(^KLineScaleAction)(BOOL clickState);
                                       atScrollPosition:UITableViewScrollPositionBottom
                                               animated:YES];
             }
-            //NSLog(@"LOSE 多单 | 买入时间: %@ | 卖出时间: %@ | 买: %.2f | 卖: %.2f | 盈利 %.2f%%", buy_dateStr, sall_dateStr, buyPrice, SL, (SL-buyPrice)/buyPrice*100);
-            
-            // ======== 统计部分开始 ========
-            // 总交易笔数
-            self.tradeCount += 1;
-            // 总交易笔数
-            self.currentLossStreak += 1;
-            
-            double pct = (SL -buyPrice) / buyPrice * 100.0;//单笔收益率(%)
-            // === 复利计算（和 Python 完全一致）===
-            double multiplier = 1.0 + pct / 100.0;
-            self.finalBalance *= multiplier;
-            // 添加到数组（用于计算平均回报）
-            [self.returnsArray addObject:@(pct)];
-            // ======== 统计部分结束 ========
 
             return YES;
         }
@@ -1211,25 +1119,19 @@ typedef void(^KLineScaleAction)(BOOL clickState);
     else {
 
         // --- 止盈（价格 <= TP）---
-        if (cur.low <= TP) {
-            self.winCount++;
-            self.allKLineData[i].signalTag = @"赚";
-            
-//            NSDate *buy_date = [NSDate dateWithTimeIntervalSince1970:self.allKLineData[buyIndex].timestamp];
-//            NSDateFormatter *buy_formatter = [[NSDateFormatter alloc] init];
-//            buy_formatter.dateFormat = @"yyyy-MM-dd HH";
-//            NSString *buy_dateStr = [buy_formatter stringFromDate:buy_date];
-            
-            NSDate *sall_date = [NSDate dateWithTimeIntervalSince1970:self.allKLineData[i].timestamp];
+        if (sellModel.low <= TP) {
+            sellModel.signalTag = @"赚";
+ 
+            NSDate *sall_date = [NSDate dateWithTimeIntervalSince1970:sellModel.timestamp];
             NSDateFormatter *sall_formatter = [[NSDateFormatter alloc] init];
             sall_formatter.dateFormat = @"yyyy-MM-dd HH";
             NSString *sall_dateStr = [sall_formatter stringFromDate:sall_date];
             
             //卖出价格
-            NSString *buySellPriceString = [NSString stringWithFormat:@"%.2f",self.allKLineData[buyIndex].low];
+            NSString *sellPrice = [NSString stringWithFormat:@"%.2f",TP];
             
-            BusinessModel *model = [[BusinessModel alloc] initWithBuySel:@"卖出" buySelTime:sall_dateStr buySellPrice:buySellPriceString longShort:@"盈利" profitLoss:(buyPrice-TP)/buyPrice*100];
-            self.tableViewList = [[self addBusinessModelWithoutDuplication:model] mutableCopy];
+            BusinessModel *model = [[BusinessModel alloc] initWithBuySel:@"卖" buySelTime:sall_dateStr buySellPrice:sellPrice longShort:@"盈利" profitLoss:(buyModel.close-TP)/buyModel.close*100];
+            self.tableViewList = [[self addBusinessModelWithoutDuplication:model] mutableCopy];//去重,模型添加数组
             [self dataSummary];
             [self.tableView reloadData];
             if (self.tableViewList.count > 0) {
@@ -1238,53 +1140,24 @@ typedef void(^KLineScaleAction)(BOOL clickState);
                                       atScrollPosition:UITableViewScrollPositionBottom
                                               animated:YES];
             }
-            //NSLog(@"WIN 空单 | 买入时间: %@ | 卖出时间: %@ | 卖空: %.2f | 平仓: %.2f | 盈利 %.2f%%", buy_dateStr, sall_dateStr, buyPrice, TP, (buyPrice-TP)/buyPrice*100);
-            
-            // ======== 统计部分开始 ========
-            // 总交易笔数
-            self.tradeCount += 1;
-            // 盈利笔数
-            self.winTrades += 1;
-
-            // 清零当前连败并记录到 streak 数组
-            if (self.currentLossStreak > 0) {
-                NSInteger idx = MIN(self.currentLossStreak - 1, 11);
-                NSInteger old = self.lossStreaks[idx].integerValue;
-                self.lossStreaks[idx] = @(old + 1);
-                self.currentLossStreak = 0;
-            }
-            
-            double pct = (buyPrice - TP) / buyPrice * 100.0;//单笔收益率(%)  8%
-            // === 复利计算（和 Python 完全一致）===
-            double multiplier = 1.0 + pct / 100.0;
-            self.finalBalance *= multiplier;
-            // 添加到数组（用于计算平均回报）
-            [self.returnsArray addObject:@(pct)];
-            // ======== 统计部分结束 ========
 
             return YES;
         }
 
         // --- 止损（价格 >= SL）---
-        if (cur.high >= SL) {
-            self.lowerCount++;
-            self.allKLineData[i].signalTag = @"亏";
-            
-//            NSDate *buy_date = [NSDate dateWithTimeIntervalSince1970:self.allKLineData[buyIndex].timestamp];
-//            NSDateFormatter *buy_formatter = [[NSDateFormatter alloc] init];
-//            buy_formatter.dateFormat = @"yyyy-MM-dd HH";
-//            NSString *buy_dateStr = [buy_formatter stringFromDate:buy_date];
-            
-            NSDate *sall_date = [NSDate dateWithTimeIntervalSince1970:self.allKLineData[i].timestamp];
+        if (sellModel.high >= SL) {
+            sellModel.signalTag = @"亏";
+
+            NSDate *sall_date = [NSDate dateWithTimeIntervalSince1970:sellModel.timestamp];
             NSDateFormatter *sall_formatter = [[NSDateFormatter alloc] init];
             sall_formatter.dateFormat = @"yyyy-MM-dd HH";
             NSString *sall_dateStr = [sall_formatter stringFromDate:sall_date];
             
             //卖出价格
-            NSString *buySellPriceString = [NSString stringWithFormat:@"%.2f",self.allKLineData[buyIndex].low];
+            NSString *sellPrice = [NSString stringWithFormat:@"%.2f",SL];
 
-            BusinessModel *model = [[BusinessModel alloc] initWithBuySel:@"卖出" buySelTime:sall_dateStr buySellPrice:buySellPriceString longShort:@"亏损" profitLoss:(buyPrice-SL)/buyPrice*100];
-            self.tableViewList = [[self addBusinessModelWithoutDuplication:model] mutableCopy];
+            BusinessModel *model = [[BusinessModel alloc] initWithBuySel:@"卖" buySelTime:sall_dateStr buySellPrice:sellPrice longShort:@"亏损" profitLoss:(buyModel.close-SL)/buyModel.close*100];
+            self.tableViewList = [[self addBusinessModelWithoutDuplication:model] mutableCopy];//去重,模型添加数组
             [self dataSummary];
             [self.tableView reloadData];
             if (self.tableViewList.count > 0) {
@@ -1293,23 +1166,7 @@ typedef void(^KLineScaleAction)(BOOL clickState);
                                       atScrollPosition:UITableViewScrollPositionBottom
                                               animated:YES];
             }
-            //NSLog(@"LOSE 空单 | 买入时间: %@ | 卖出时间: %@ | 卖空: %.2f | 平仓: %.2f | 盈利 %.2f%%", buy_dateStr, sall_dateStr, buyPrice, SL, (buyPrice-SL)/buyPrice*100);
-            
-            // ======== 统计部分开始 ========
-            // 总交易笔数
-            self.tradeCount += 1;
-            // 亏损笔数
-            self.currentLossStreak += 1;
-            
-            double pct = (buyPrice - SL) / buyPrice * 100.0;//单笔收益率(%) -12
-            // === 复利计算（和 Python 完全一致）===
-            double multiplier = 1.0 + pct / 100.0;  //剩余总金额的 0.88 88%
-            self.finalBalance *= multiplier;// 总金额 * 88%
-            // 添加到数组（用于计算平均回报）
-            [self.returnsArray addObject:@(pct)];
-            // ======== 统计部分结束 ========
 
-            
             return YES;
         }
     }
@@ -1317,30 +1174,14 @@ typedef void(^KLineScaleAction)(BOOL clickState);
     return NO; // 继续持仓
 }
 
--(NSMutableArray<KLineModel *> *)creatDataWithTime:(NSString *)time withFuture:(BOOL)future {
-    NSMutableArray *initialList = [NSMutableArray array];
-    NSMutableArray *futureList = [NSMutableArray array];
+-(void)buildDataWithTimestamp:(double)timestamp {
+
     NSArray *paths = [[NSBundle mainBundle] pathsForResourcesOfType:@"json" inDirectory:nil];
     NSArray *sortedPaths = [paths sortedArrayUsingComparator:^NSComparisonResult(id  _Nonnull obj1, id  _Nonnull obj2) {
         return [[obj1 lastPathComponent] localizedStandardCompare:[obj2 lastPathComponent]];
     }];
-
-    NSMutableArray *frontArray = [NSMutableArray array];
-    NSMutableArray *laterArray = [NSMutableArray array];
-    BOOL frontTag = YES;
+    
     for (NSString *filePath in sortedPaths) {
-        if ([[filePath lastPathComponent] isEqualToString:time]) {
-            frontTag = NO;
-        }
-        if (frontTag) {
-            [frontArray addObject:filePath];
-        } else {
-            [laterArray addObject:filePath];
-        }
-    }
-    
-    
-    for (NSString *filePath in frontArray) {
         NSData *data = [NSData dataWithContentsOfFile:filePath];
         if (!data) continue;
         NSError *error;
@@ -1348,37 +1189,28 @@ typedef void(^KLineScaleAction)(BOOL clickState);
         if (error) continue;
         NSArray *klineList = json[@"data"][@"kline_list"];
         for (NSDictionary *dict in klineList) {
-            KLineModel *model = [[KLineModel alloc] init];
-            model.open = [dict[@"open_price"] floatValue];
-            model.high = [dict[@"high_price"] floatValue];
-            model.low = [dict[@"low_price"] floatValue];
-            model.close = [dict[@"close_price"] floatValue];
-            model.timestamp = [dict[@"timestamp"] doubleValue];
-            model.volume = [dict[@"volume"] floatValue];
-            [initialList addObject:model];
+            if ([dict[@"timestamp"] doubleValue] >= timestamp) {
+                KLineModel *model = [[KLineModel alloc] init];
+                model.open = [dict[@"open_price"] floatValue];
+                model.high = [dict[@"high_price"] floatValue];
+                model.low = [dict[@"low_price"] floatValue];
+                model.close = [dict[@"close_price"] floatValue];
+                model.timestamp = [dict[@"timestamp"] doubleValue];
+                model.volume = [dict[@"volume"] floatValue];
+                [self.futureKLineData addObject:model];//未来的k线数据
+            } else {
+                KLineModel *model = [[KLineModel alloc] init];
+                model.open = [dict[@"open_price"] floatValue];
+                model.high = [dict[@"high_price"] floatValue];
+                model.low = [dict[@"low_price"] floatValue];
+                model.close = [dict[@"close_price"] floatValue];
+                model.timestamp = [dict[@"timestamp"] doubleValue];
+                model.volume = [dict[@"volume"] floatValue];
+                [self.allKLineData addObject:model];//显示的k线数据
+            }
         }
     }
     
-    for (NSString *filePath in laterArray) {
-        NSData *data = [NSData dataWithContentsOfFile:filePath];
-        if (!data) continue;
-        NSError *error;
-        NSDictionary *json = [NSJSONSerialization JSONObjectWithData:data options:kNilOptions error:&error];
-        if (error) continue;
-        NSArray *klineList = json[@"data"][@"kline_list"];
-        for (NSDictionary *dict in klineList) {
-            KLineModel *model = [[KLineModel alloc] init];
-            model.open = [dict[@"open_price"] floatValue];
-            model.high = [dict[@"high_price"] floatValue];
-            model.low = [dict[@"low_price"] floatValue];
-            model.close = [dict[@"close_price"] floatValue];
-            model.timestamp = [dict[@"timestamp"] doubleValue];
-            model.volume = [dict[@"volume"] floatValue];
-            [futureList addObject:model];
-        }
-    }
-
-    return future ? futureList : initialList;
 }
 
 // 左右滑动执行
@@ -1388,9 +1220,4 @@ typedef void(^KLineScaleAction)(BOOL clickState);
 }
 
 @end
-
-
-
-
-
 

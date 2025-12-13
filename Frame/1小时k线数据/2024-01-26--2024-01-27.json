@@ -1,0 +1,281 @@
+{
+  "data" : {
+    "kline_list" : [
+      {
+        "volume" : "3405.7138",
+        "high_price" : "40755.98",
+        "turnover" : "137924244.62",
+        "open_price" : "40079.83",
+        "low_price" : "40068.00",
+        "timestamp" : "1706263200",
+        "close_price" : "40692.64"
+      },
+      {
+        "volume" : "4977.7631",
+        "high_price" : "41348.13",
+        "turnover" : "204430282.37",
+        "open_price" : "40692.64",
+        "low_price" : "40684.79",
+        "timestamp" : "1706266800",
+        "close_price" : "41289.52"
+      },
+      {
+        "volume" : "4268.5560",
+        "high_price" : "41500.00",
+        "turnover" : "176460431.75",
+        "open_price" : "41289.52",
+        "low_price" : "41091.93",
+        "timestamp" : "1706270400",
+        "close_price" : "41140.01"
+      },
+      {
+        "volume" : "2048.4223",
+        "high_price" : "41229.76",
+        "turnover" : "84246733.83",
+        "open_price" : "41140.01",
+        "low_price" : "40914.50",
+        "timestamp" : "1706274000",
+        "close_price" : "41021.65"
+      },
+      {
+        "volume" : "2211.5124",
+        "high_price" : "41588.00",
+        "turnover" : "91332088.33",
+        "open_price" : "41021.65",
+        "low_price" : "41021.65",
+        "timestamp" : "1706277600",
+        "close_price" : "41588.00"
+      },
+      {
+        "volume" : "3617.8364",
+        "high_price" : "41588.00",
+        "turnover" : "149744394.96",
+        "open_price" : "41588.00",
+        "low_price" : "41218.00",
+        "timestamp" : "1706281200",
+        "close_price" : "41422.99"
+      },
+      {
+        "volume" : "4399.4447",
+        "high_price" : "41995.99",
+        "turnover" : "183749039.92",
+        "open_price" : "41422.98",
+        "low_price" : "41405.31",
+        "timestamp" : "1706284800",
+        "close_price" : "41961.14"
+      },
+      {
+        "volume" : "2538.6292",
+        "high_price" : "42010.02",
+        "turnover" : "106415511.88",
+        "open_price" : "41961.15",
+        "low_price" : "41752.83",
+        "timestamp" : "1706288400",
+        "close_price" : "41915.16"
+      },
+      {
+        "volume" : "2699.5426",
+        "high_price" : "42193.80",
+        "turnover" : "113572250.38",
+        "open_price" : "41915.17",
+        "low_price" : "41851.50",
+        "timestamp" : "1706292000",
+        "close_price" : "42105.01"
+      },
+      {
+        "volume" : "1716.8094",
+        "high_price" : "42125.00",
+        "turnover" : "72200192.48",
+        "open_price" : "42105.00",
+        "low_price" : "41936.00",
+        "timestamp" : "1706295600",
+        "close_price" : "42064.49"
+      },
+      {
+        "volume" : "2275.0079",
+        "high_price" : "42246.82",
+        "turnover" : "95635102.24",
+        "open_price" : "42064.48",
+        "low_price" : "41838.83",
+        "timestamp" : "1706299200",
+        "close_price" : "41977.18"
+      },
+      {
+        "volume" : "1147.6097",
+        "high_price" : "42048.00",
+        "turnover" : "48185252.93",
+        "open_price" : "41977.18",
+        "low_price" : "41878.93",
+        "timestamp" : "1706302800",
+        "close_price" : "41998.78"
+      },
+      {
+        "volume" : "1674.2404",
+        "high_price" : "42011.75",
+        "turnover" : "70176074.26",
+        "open_price" : "41998.77",
+        "low_price" : "41820.64",
+        "timestamp" : "1706306400",
+        "close_price" : "41906.28"
+      },
+      {
+        "volume" : "673.8794",
+        "high_price" : "41972.00",
+        "turnover" : "28247667.89",
+        "open_price" : "41906.28",
+        "low_price" : "41800.02",
+        "timestamp" : "1706310000",
+        "close_price" : "41823.51"
+      },
+      {
+        "volume" : "929.3359",
+        "high_price" : "41866.67",
+        "turnover" : "38873129.09",
+        "open_price" : "41823.51",
+        "low_price" : "41708.00",
+        "timestamp" : "1706313600",
+        "close_price" : "41785.94"
+      },
+      {
+        "volume" : "630.0288",
+        "high_price" : "41933.17",
+        "turnover" : "26391031.59",
+        "open_price" : "41785.94",
+        "low_price" : "41768.50",
+        "timestamp" : "1706317200",
+        "close_price" : "41818.86"
+      },
+      {
+        "volume" : "382.3257",
+        "high_price" : "41896.09",
+        "turnover" : "16018615.50",
+        "open_price" : "41818.86",
+        "low_price" : "41815.48",
+        "timestamp" : "1706320800",
+        "close_price" : "41838.59"
+      },
+      {
+        "volume" : "832.5140",
+        "high_price" : "41865.21",
+        "turnover" : "34829522.53",
+        "open_price" : "41838.60",
+        "low_price" : "41765.64",
+        "timestamp" : "1706324400",
+        "close_price" : "41815.01"
+      },
+      {
+        "volume" : "490.7249",
+        "high_price" : "41875.67",
+        "turnover" : "20545593.44",
+        "open_price" : "41815.01",
+        "low_price" : "41791.10",
+        "timestamp" : "1706328000",
+        "close_price" : "41844.26"
+      },
+      {
+        "volume" : "435.0651",
+        "high_price" : "41890.00",
+        "turnover" : "18205399.01",
+        "open_price" : "41844.26",
+        "low_price" : "41738.59",
+        "timestamp" : "1706331600",
+        "close_price" : "41762.48"
+      },
+      {
+        "volume" : "559.5352",
+        "high_price" : "41812.00",
+        "turnover" : "23384557.41",
+        "open_price" : "41762.49",
+        "low_price" : "41691.24",
+        "timestamp" : "1706335200",
+        "close_price" : "41704.04"
+      },
+      {
+        "volume" : "897.9643",
+        "high_price" : "41729.41",
+        "turnover" : "37434993.00",
+        "open_price" : "41704.04",
+        "low_price" : "41602.01",
+        "timestamp" : "1706338800",
+        "close_price" : "41710.14"
+      },
+      {
+        "volume" : "1367.4707",
+        "high_price" : "41719.85",
+        "turnover" : "56887861.07",
+        "open_price" : "41710.15",
+        "low_price" : "41421.21",
+        "timestamp" : "1706342400",
+        "close_price" : "41470.01"
+      },
+      {
+        "volume" : "1070.4524",
+        "high_price" : "41742.70",
+        "turnover" : "44531061.10",
+        "open_price" : "41470.01",
+        "low_price" : "41394.34",
+        "timestamp" : "1706346000",
+        "close_price" : "41669.78"
+      },
+      {
+        "volume" : "731.6445",
+        "high_price" : "41800.00",
+        "turnover" : "30557055.74",
+        "open_price" : "41669.79",
+        "low_price" : "41651.10",
+        "timestamp" : "1706349600",
+        "close_price" : "41747.30"
+      },
+      {
+        "volume" : "575.3908",
+        "high_price" : "41786.87",
+        "turnover" : "24045516.62",
+        "open_price" : "41747.31",
+        "low_price" : "41702.88",
+        "timestamp" : "1706353200",
+        "close_price" : "41761.23"
+      },
+      {
+        "volume" : "612.0691",
+        "high_price" : "41807.03",
+        "turnover" : "25578896.14",
+        "open_price" : "41761.22",
+        "low_price" : "41714.00",
+        "timestamp" : "1706356800",
+        "close_price" : "41750.00"
+      },
+      {
+        "volume" : "418.9580",
+        "high_price" : "41806.55",
+        "turnover" : "17512209.58",
+        "open_price" : "41750.01",
+        "low_price" : "41725.21",
+        "timestamp" : "1706360400",
+        "close_price" : "41742.44"
+      },
+      {
+        "volume" : "492.9872",
+        "high_price" : "41818.39",
+        "turnover" : "20611788.17",
+        "open_price" : "41742.44",
+        "low_price" : "41731.01",
+        "timestamp" : "1706364000",
+        "close_price" : "41766.00"
+      },
+      {
+        "volume" : "580.7349",
+        "high_price" : "41894.87",
+        "turnover" : "24313198.75",
+        "open_price" : "41765.99",
+        "low_price" : "41733.60",
+        "timestamp" : "1706367600",
+        "close_price" : "41814.00"
+      }
+    ],
+    "kline_type" : 5,
+    "code" : "BTCUSDT"
+  },
+  "msg" : "ok",
+  "trace" : "5e7afb083fd43791c50ace73a5e9e477-c-app",
+  "ret" : 200
+}
